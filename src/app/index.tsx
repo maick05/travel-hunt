@@ -5,11 +5,11 @@ import { ScreenBackground } from '@/components/screen-background';
 import { ThemedText } from '@/components/themed-text';
 import { BannerCard, Card, Empty, IconBubble } from '@/components/ui';
 import { isSheetsConfigured } from '@/config/env';
-import { USE_SNAPSHOT } from '@/services/snapshot';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { countdownLabel, formatDate } from '@/features/travel/format';
 import { tripBanner } from '@/features/travel/trip-banners';
 import { useTravelData } from '@/features/travel/use-travel-data';
+import { USE_SNAPSHOT } from '@/services/snapshot';
 
 export default function TripsScreen() {
   const { data, isLoading, error, refetch } = useTravelData();
