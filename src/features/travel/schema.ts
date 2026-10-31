@@ -137,6 +137,16 @@ export const schemas = {
       banner: text('Banner'),
     },
   },
+  // Preenchida por um script do Apps Script a partir dos links do Maps (ver scripts/apps-script).
+  coords: {
+    tab: 'Coordenadas',
+    fields: {
+      link: text('Link'),
+      name: text('Nome'),
+      lat: number('Latitude'),
+      lng: number('Longitude'),
+    },
+  },
 } as const;
 
 export type TableKey = keyof typeof schemas;

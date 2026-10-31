@@ -76,4 +76,5 @@ export const sampleRows: Record<TableKey, SheetRows> = {
     ['Bogotá', 'Colômbia', LINK.museum, 'https://r-xx.bstatic.com/xdata/images/xphoto/672x378/78530515.jpg?k=001c129b014e6abf5e810952959729870625c23ecb40acbeb2338daaf7e5fcfc&o='],
     ['Barcelona', 'Espanha', LINK.barcelona, ''],
   ],
+  coords: [['Link', 'Nome', 'Latitude', 'Longitude']],
 };

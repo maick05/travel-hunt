@@ -30,9 +30,20 @@ export function bannerSource(value: string): ImageSourcePropType | undefined {
   return DRIVE_IMAGES[driveId];
 }
 
-/** Link do Maps já resolvido para nome e coordenadas (feito no build por scripts/resolve-places.mjs). */
+/** Coordenadas vindas da aba Coordenadas; têm prioridade sobre as resolvidas no build. */
+let sheetCoords: Record<string, { name: string; lat: number; lng: number }> = {};
+
+export function registerCoords(rows: Tables['coords']) {
+  sheetCoords = Object.fromEntries(
+    rows
+      .filter((r) => r.link && r.lat !== null && r.lng !== null)
+      .map((r) => [r.link.trim(), { name: r.name, lat: r.lat as number, lng: r.lng as number }]),
+  );
+}
+
+/** Link do Maps já resolvido para nome e coordenadas (aba Coordenadas ou scripts/resolve-places.mjs no build). */
 export function lookupLink(link: string): Place | undefined {
-  const r = RESOLVED[link.trim()];
+  const r = sheetCoords[link.trim()] ?? RESOLVED[link.trim()];
   return r ? { name: r.name, coord: { lat: r.lat, lng: r.lng } } : undefined;
 }
 

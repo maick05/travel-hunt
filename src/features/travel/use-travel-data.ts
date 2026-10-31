@@ -23,5 +23,6 @@ export function selectTrip(data: Tables, name: string): TripData {
     transports: byDate(byTrip(data.transports, name), (t) => t.departure),
     currencies: data.currencies,
     locals: data.locals,
+    coords: data.coords,
   };
 }
