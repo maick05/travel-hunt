@@ -2,7 +2,7 @@ import { toBRL } from './format';
 import type { Bill } from './schema';
 import type { TripData } from './use-travel-data';
 
-export type CostKind = 'flights' | 'hotels' | 'transports' | 'meals';
+export type CostKind = 'flights' | 'hotels' | 'transports' | 'meals' | 'activities';
 
 // Valor da coluna "Tipo" da aba Money para cada categoria.
 const BILL_TYPE: Record<CostKind, string> = {
@@ -10,6 +10,7 @@ const BILL_TYPE: Record<CostKind, string> = {
   hotels: 'hospedagem',
   transports: 'transporte',
   meals: 'comida',
+  activities: 'atividade',
 };
 
 const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();

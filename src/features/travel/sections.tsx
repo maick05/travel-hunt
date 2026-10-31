@@ -149,6 +149,17 @@ function IconTip({ icon, tip, onPress }: { icon: IconName; tip: string; onPress?
   );
 }
 
+/** Valores da aba Money (Tipo "Atividade") ligados à atividade pelo código; some se não houver. */
+function ActivityCost({ data, code }: { data: TripData; code: string }) {
+  const cost = costFor(data, 'activities', code);
+  if (!cost.bills.length) return null;
+  return (
+    <Accordion sub icon="cash" title="Valores" subtitle={formatBRL(cost.totalBRL)}>
+      <CostLines cost={cost} currencies={data.currencies} />
+    </Accordion>
+  );
+}
+
 const normText = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
 function transportKey(t: { code: string; details: string }) {
@@ -211,6 +222,7 @@ function DayList({
                   </View>
                   <PlaceLink place={a.place} />
                   <Field label="Obs." value={a.notes} />
+                  <ActivityCost data={data} code={a.code} />
                 </View>
               </View>
             </Card>
