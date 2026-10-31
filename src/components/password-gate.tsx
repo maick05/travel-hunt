@@ -5,18 +5,18 @@ import { ScreenBackground } from '@/components/screen-background';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { unlock, unlockStored, USE_SNAPSHOT } from '@/services/snapshot';
+import { unlock, unlockStored, USE_REMOTE } from '@/services/remote';
 
 /** Tela de senha: os dados do build publicado só abrem com a senha que criptografou o arquivo. */
 export function PasswordGate({ children }: { children: React.ReactNode }) {
-  const [unlocked, setUnlocked] = useState(!USE_SNAPSHOT);
-  const [checking, setChecking] = useState(USE_SNAPSHOT);
+  const [unlocked, setUnlocked] = useState(!USE_REMOTE);
+  const [checking, setChecking] = useState(USE_REMOTE);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!USE_SNAPSHOT) return;
+    if (!USE_REMOTE) return;
     unlockStored().then((ok) => {
       setUnlocked(ok);
       setChecking(false);

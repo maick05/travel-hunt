@@ -1,6 +1,6 @@
 import { isSheetsConfigured } from '@/config/env';
 import { fetchTabs, pickTabs } from '@/services/sheets/client';
-import { snapshotTabs, USE_SNAPSHOT } from '@/services/snapshot';
+import { USE_REMOTE, fetchRemoteTabs } from '@/services/remote';
 
 import { parseTables, tableKeys } from './parse';
 import { registerCoords } from './places';
@@ -11,10 +11,10 @@ import { schemas, type TableKey, type Tables } from './schema';
 const OPTIONAL_TABS: TableKey[] = ['locals', 'coords'];
 
 export async function loadTravelData(): Promise<Tables> {
-  if (!USE_SNAPSHOT && !isSheetsConfigured) return parseTables(sampleRows);
+  if (!USE_REMOTE && !isSheetsConfigured) return parseTables(sampleRows);
 
   const tabs = tableKeys.map((k) => ({ prefix: schemas[k].tab, optional: OPTIONAL_TABS.includes(k) }));
-  const rows = USE_SNAPSHOT ? pickTabs(snapshotTabs(), tabs) : await fetchTabs(tabs);
+  const rows = USE_REMOTE ? pickTabs(await fetchRemoteTabs(), tabs) : await fetchTabs(tabs);
   const tables = parseTables(
     Object.fromEntries(tableKeys.map((k, i) => [k, rows[i]])) as Parameters<typeof parseTables>[0],
   );

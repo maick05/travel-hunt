@@ -45,5 +45,3 @@ example
 
 /samples
 
-# dados criptografados gerados no build
-/public/data.enc.json

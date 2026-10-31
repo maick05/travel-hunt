@@ -9,7 +9,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { countdownLabel, formatDate } from '@/features/travel/format';
 import { tripBanner } from '@/features/travel/trip-banners';
 import { useTravelData } from '@/features/travel/use-travel-data';
-import { USE_SNAPSHOT } from '@/services/snapshot';
+import { USE_REMOTE } from '@/services/remote';
 
 export default function TripsScreen() {
   const { data, isLoading, error, refetch } = useTravelData();
@@ -18,7 +18,7 @@ export default function TripsScreen() {
     <ScreenBackground>
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="title">Viagens</ThemedText>
-        {!isSheetsConfigured && !USE_SNAPSHOT && (
+        {!isSheetsConfigured && !USE_REMOTE && (
           <ThemedText type="small" themeColor="textSecondary">
             Exibindo dados de exemplo. Configure EXPO_PUBLIC_SHEETS_ID e EXPO_PUBLIC_SHEETS_API_KEY para usar sua planilha.
           </ThemedText>
