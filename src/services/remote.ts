@@ -15,8 +15,12 @@ let hash: string | null = null;
 let prefetched: Tabs | null = null;
 
 async function request(senhaMd5: string): Promise<Tabs> {
-  const url = `${SCRIPT_URL}${SCRIPT_URL.includes('?') ? '&' : '?'}senha=${senhaMd5}`;
-  const res = await fetch(url);
+  // text/plain evita o preflight de CORS, que o Apps Script não responde.
+  const res = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ senha: senhaMd5 }),
+  });
   if (!res.ok) throw new Error(`Erro ao acessar os dados (${res.status})`);
 
   const json = (await res.json()) as { erro?: string; abas?: Tabs };
@@ -33,6 +37,24 @@ async function open(senhaMd5: string): Promise<void> {
 
 export function unlock(senha: string): Promise<void> {
   return open(md5(senha));
+}
+
+/** Abre com o MD5 recebido em `?senha=` na URL do site e tira o parâmetro do endereço. */
+export async function unlockFromUrl(): Promise<boolean> {
+  const url = new URL(window.location.href);
+  const senhaMd5 = url.searchParams.get('senha')?.toLowerCase();
+  if (!senhaMd5) return false;
+
+  url.searchParams.delete('senha');
+  window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+
+  if (!/^[0-9a-f]{32}$/.test(senhaMd5)) return false;
+  try {
+    await open(senhaMd5);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Tenta abrir com o hash lembrado neste navegador. */

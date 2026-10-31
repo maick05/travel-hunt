@@ -1,6 +1,6 @@
 // Cole no mesmo projeto do Apps Script (Extensões > Apps Script), em um arquivo separado.
 // Publica a planilha como Web App protegido por senha: o site pede os dados aqui, sem chave de API.
-// A chamada é GET <url>/exec?senha=<MD5 da senha em hexadecimal minúsculo>.
+// A chamada é POST <url>/exec com corpo {"senha": "<MD5 da senha em hexadecimal minúsculo>"}.
 //
 // Passos: 1) Configurações do projeto > Propriedades do script > adicione SENHA com uma frase longa.
 // 2) Implantar > Nova implantação > Tipo "App da Web" > Executar como "Eu" > Acesso "Qualquer pessoa".
@@ -8,8 +8,18 @@
 
 const EPOCA_SHEETS = Date.UTC(1899, 11, 30);
 
-function doGet(e) {
-  const enviada = String((e && e.parameter && e.parameter.senha) || '').toLowerCase();
+function doGet() {
+  return resposta({ erro: 'Use POST.' });
+}
+
+function doPost(e) {
+  let enviada = '';
+  try {
+    enviada = String(JSON.parse(e.postData.contents).senha || '').toLowerCase();
+  } catch (err) {
+    // corpo inválido: tratado como senha vazia
+  }
+
   const senha = PropertiesService.getScriptProperties().getProperty('SENHA');
   if (!senha || !iguais(enviada, md5(senha))) {
     Utilities.sleep(2000); // dificulta tentativas em série

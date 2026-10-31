@@ -5,7 +5,7 @@ import { ScreenBackground } from '@/components/screen-background';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { unlock, unlockStored, USE_REMOTE } from '@/services/remote';
+import { unlock, unlockFromUrl, unlockStored, USE_REMOTE } from '@/services/remote';
 
 /** Tela de senha: os dados do build publicado só abrem com a senha que criptografou o arquivo. */
 export function PasswordGate({ children }: { children: React.ReactNode }) {
@@ -17,10 +17,12 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!USE_REMOTE) return;
-    unlockStored().then((ok) => {
-      setUnlocked(ok);
-      setChecking(false);
-    });
+    unlockFromUrl()
+      .then((ok) => ok || unlockStored())
+      .then((ok) => {
+        setUnlocked(ok);
+        setChecking(false);
+      });
   }, []);
 
   if (unlocked) return <>{children}</>;
