@@ -6,7 +6,7 @@ const TRIP_BANNERS: Record<string, ImageSourcePropType> = {
   'eclipse-08-2027': require('../../../assets/trips/eclipse-08-2027.png'),
 };
 
-/** Identificador da viagem: o nome sem acentos, em min\u00fasculas e com h\u00edfens ("Eclipse 08/2027" \u2192 "eclipse-08-2027"). */
+/** Identificador da viagem: o nome sem acentos, em min\u00fasculas e com h\u00edfens ("Viagem Exemplo" \u2192 "viagem-exemplo"). */
 export function tripId(name: string): string {
   return name
     .normalize('NFD')
