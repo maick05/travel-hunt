@@ -7,6 +7,7 @@ const SCRIPT_URL = process.env.EXPO_PUBLIC_SCRIPT_URL ?? '';
 export const USE_REMOTE = Boolean(SCRIPT_URL);
 
 const STORAGE_KEY = 'travel-hunt:senha-md5';
+const WRONG_PASSWORD = 'Senha incorreta.';
 
 type Tabs = Record<string, SheetRows>;
 
@@ -19,12 +20,12 @@ async function request(senhaMd5: string): Promise<Tabs> {
   const res = await fetch(SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ apiKey: senhaMd5 }),
+    body: JSON.stringify({ senha: senhaMd5 }),
   });
   if (!res.ok) throw new Error(`Erro ao acessar os dados (${res.status})`);
 
   const json = (await res.json()) as { erro?: string; abas?: Tabs };
-  if (json.erro === 'senha') throw new Error('Senha incorreta.');
+  if (json.erro === 'senha') throw new Error(WRONG_PASSWORD);
   if (!json.abas) throw new Error(json.erro ?? 'Resposta inesperada do servidor.');
   return json.abas;
 }
@@ -57,20 +58,15 @@ export async function unlockFromUrl(): Promise<boolean> {
   }
 }
 
-/** Tenta abrir com o hash lembrado neste navegador. */
+/** Usa o hash já validado e guardado neste navegador, sem consultar o servidor. */
 export async function unlockStored(): Promise<boolean> {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (!saved) return false;
-  try {
-    await open(saved);
-    return true;
-  } catch {
-    localStorage.removeItem(STORAGE_KEY);
-    return false;
-  }
+  hash = saved;
+  return true;
 }
 
-/** Dados atuais da planilha; a primeira chamada reaproveita a resposta que abriu a tela de senha. */
+/** Dados atuais da planilha; a primeira chamada após digitar a senha reaproveita a resposta que a validou. */
 export async function fetchRemoteTabs(): Promise<Tabs> {
   if (!hash) throw new Error('Dados bloqueados.');
   if (prefetched) {
@@ -78,5 +74,15 @@ export async function fetchRemoteTabs(): Promise<Tabs> {
     prefetched = null;
     return tabs;
   }
-  return request(hash);
+  try {
+    return await request(hash);
+  } catch (e) {
+    // A senha mudou no servidor: esquece o hash e volta para a tela de senha.
+    if ((e as Error).message === WRONG_PASSWORD) {
+      localStorage.removeItem(STORAGE_KEY);
+      hash = null;
+      window.location.reload();
+    }
+    throw e;
+  }
 }
