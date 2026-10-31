@@ -9,6 +9,19 @@ async function getJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** Escolhe, num mapa título -> linhas, a aba cujo título começa com cada prefixo (mesma regra de `fetchTabs`). */
+export function pickTabs(
+  byTitle: Record<string, SheetRows>,
+  tabs: { prefix: string; optional?: boolean }[],
+): SheetRows[] {
+  const titles = Object.keys(byTitle);
+  return tabs.map(({ prefix, optional }) => {
+    const title = titles.find((t) => t.trim().toLowerCase().startsWith(prefix.toLowerCase()));
+    if (!title && !optional) throw new Error(`Aba "${prefix}" não encontrada na planilha.`);
+    return title ? byTitle[title] : [];
+  });
+}
+
 /**
  * Busca as abas cujo título começa com cada prefixo (ignora emoji e espaços do título).
  * Valores vêm sem formatação e datas como número serial, igual ao parser espera.

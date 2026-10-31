@@ -5,6 +5,7 @@ import { ScreenBackground } from '@/components/screen-background';
 import { ThemedText } from '@/components/themed-text';
 import { BannerCard, Card, Empty, IconBubble } from '@/components/ui';
 import { isSheetsConfigured } from '@/config/env';
+import { USE_SNAPSHOT } from '@/services/snapshot';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { countdownLabel, formatDate } from '@/features/travel/format';
 import { tripBanner } from '@/features/travel/trip-banners';
@@ -17,7 +18,7 @@ export default function TripsScreen() {
     <ScreenBackground>
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="title">Viagens</ThemedText>
-        {!isSheetsConfigured && (
+        {!isSheetsConfigured && !USE_SNAPSHOT && (
           <ThemedText type="small" themeColor="textSecondary">
             Exibindo dados de exemplo. Configure EXPO_PUBLIC_SHEETS_ID e EXPO_PUBLIC_SHEETS_API_KEY para usar sua planilha.
           </ThemedText>
