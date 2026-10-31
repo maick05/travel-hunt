@@ -1,6 +1,6 @@
 // Cole no mesmo projeto do Apps Script (Extensões > Apps Script), em um arquivo separado.
 // Publica a planilha como Web App protegido por senha: o site pede os dados aqui, sem chave de API.
-// A chamada é POST <url>/exec com corpo {"senha": "<MD5 da senha em hexadecimal minúsculo>"}.
+// A chamada é POST <url>/exec com corpo {"apiKey": "<MD5 da senha em hexadecimal minúsculo>"}.
 //
 // Passos: 1) Configurações do projeto > Propriedades do script > adicione SENHA com uma frase longa.
 // 2) Implantar > Nova implantação > Tipo "App da Web" > Executar como "Eu" > Acesso "Qualquer pessoa".
@@ -15,7 +15,7 @@ function doGet() {
 function doPost(e) {
   let enviada = '';
   try {
-    enviada = String(JSON.parse(e.postData.contents).senha || '').toLowerCase();
+    enviada = String(JSON.parse(e.postData.contents).apiKey || '').toLowerCase();
   } catch (err) {
     // corpo inválido: tratado como senha vazia
   }

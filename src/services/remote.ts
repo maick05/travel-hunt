@@ -19,7 +19,7 @@ async function request(senhaMd5: string): Promise<Tabs> {
   const res = await fetch(SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ senha: senhaMd5 }),
+    body: JSON.stringify({ apiKey: senhaMd5 }),
   });
   if (!res.ok) throw new Error(`Erro ao acessar os dados (${res.status})`);
 
@@ -39,13 +39,13 @@ export function unlock(senha: string): Promise<void> {
   return open(md5(senha));
 }
 
-/** Abre com o MD5 recebido em `?senha=` na URL do site e tira o parâmetro do endereço. */
+/** Abre com o MD5 recebido em `?apiKey=` na URL do site e tira o parâmetro do endereço. */
 export async function unlockFromUrl(): Promise<boolean> {
   const url = new URL(window.location.href);
-  const senhaMd5 = url.searchParams.get('senha')?.toLowerCase();
+  const senhaMd5 = url.searchParams.get('apiKey')?.toLowerCase();
   if (!senhaMd5) return false;
 
-  url.searchParams.delete('senha');
+  url.searchParams.delete('apiKey');
   window.history.replaceState(null, '', url.pathname + url.search + url.hash);
 
   if (!/^[0-9a-f]{32}$/.test(senhaMd5)) return false;
