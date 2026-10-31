@@ -1,6 +1,6 @@
 import { isSheetsConfigured } from '@/config/env';
-import { fetchTabs, pickTabs } from '@/services/sheets/client';
 import { USE_REMOTE, fetchRemoteTabs } from '@/services/remote';
+import { fetchTabs, pickTabs } from '@/services/sheets/client';
 
 import { parseTables, tableKeys } from './parse';
 import { registerCoords } from './places';

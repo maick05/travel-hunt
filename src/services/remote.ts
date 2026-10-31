@@ -1,23 +1,22 @@
+import { md5 } from 'js-md5';
+
 import type { SheetRows } from '@/features/travel/schema';
 
 /** Build publicado: os dados vêm do Web App do Apps Script, protegido por senha. */
 const SCRIPT_URL = process.env.EXPO_PUBLIC_SCRIPT_URL ?? '';
 export const USE_REMOTE = Boolean(SCRIPT_URL);
 
-const STORAGE_KEY = 'travel-hunt:senha';
+const STORAGE_KEY = 'travel-hunt:senha-md5';
 
 type Tabs = Record<string, SheetRows>;
 
-let password: string | null = null;
+// Só o hash MD5 da senha circula e fica guardado; a senha digitada não é armazenada.
+let hash: string | null = null;
 let prefetched: Tabs | null = null;
 
-async function request(senha: string): Promise<Tabs> {
-  // text/plain evita o preflight de CORS, que o Apps Script não responde.
-  const res = await fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ senha }),
-  });
+async function request(senhaMd5: string): Promise<Tabs> {
+  const url = `${SCRIPT_URL}${SCRIPT_URL.includes('?') ? '&' : '?'}senha=${senhaMd5}`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`Erro ao acessar os dados (${res.status})`);
 
   const json = (await res.json()) as { erro?: string; abas?: Tabs };
@@ -26,18 +25,22 @@ async function request(senha: string): Promise<Tabs> {
   return json.abas;
 }
 
-export async function unlock(senha: string): Promise<void> {
-  prefetched = await request(senha);
-  password = senha;
-  localStorage.setItem(STORAGE_KEY, senha);
+async function open(senhaMd5: string): Promise<void> {
+  prefetched = await request(senhaMd5);
+  hash = senhaMd5;
+  localStorage.setItem(STORAGE_KEY, senhaMd5);
 }
 
-/** Tenta abrir com a senha lembrada neste navegador. */
+export function unlock(senha: string): Promise<void> {
+  return open(md5(senha));
+}
+
+/** Tenta abrir com o hash lembrado neste navegador. */
 export async function unlockStored(): Promise<boolean> {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (!saved) return false;
   try {
-    await unlock(saved);
+    await open(saved);
     return true;
   } catch {
     localStorage.removeItem(STORAGE_KEY);
@@ -47,11 +50,11 @@ export async function unlockStored(): Promise<boolean> {
 
 /** Dados atuais da planilha; a primeira chamada reaproveita a resposta que abriu a tela de senha. */
 export async function fetchRemoteTabs(): Promise<Tabs> {
-  if (!password) throw new Error('Dados bloqueados.');
+  if (!hash) throw new Error('Dados bloqueados.');
   if (prefetched) {
     const tabs = prefetched;
     prefetched = null;
     return tabs;
   }
-  return request(password);
+  return request(hash);
 }
