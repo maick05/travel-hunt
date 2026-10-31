@@ -1,0 +1,42 @@
+{
+  "https://maps.app.goo.gl/aBv5R6vuRH1JqD7y7": {
+    "name": "Aeroporto de Barcelona El Prat",
+    "lat": 41.2983405,
+    "lng": 2.0800095
+  },
+  "https://maps.app.goo.gl/hVLSHhRJyaA59neA9": {
+    "name": "Museu do Ouro",
+    "lat": 4.6019128,
+    "lng": -74.0720411
+  },
+  "https://maps.app.goo.gl/oE8va2ouoRchwHPp6": {
+    "name": "Aeroporto Internacional de São Paulo/Guarulhos",
+    "lat": -23.4302175,
+    "lng": -46.4716711
+  },
+  "https://maps.app.goo.gl/q14ohSHNPLp3V6R29": {
+    "name": "Tour Centro Histórico",
+    "lat": 4.6016952,
+    "lng": -74.0718711
+  },
+  "https://maps.app.goo.gl/uZG7N6n71akDaPvB8": {
+    "name": "El Dorado International Airport",
+    "lat": 4.7009694,
+    "lng": -74.146093
+  },
+  "https://maps.app.goo.gl/VKjFkrDxKVABHp9w5": {
+    "name": "Hotel Continental ByHours",
+    "lat": 4.6010861,
+    "lng": -74.0705539
+  },
+  "https://maps.app.goo.gl/VxfpTt5ZQxRGCAcg9": {
+    "name": "Hotel Continental ByHours",
+    "lat": 4.6010861,
+    "lng": -74.0705539
+  },
+  "https://maps.app.goo.gl/ZQoX1kB6jPCMfYkw8": {
+    "name": "El Dorado International Airport",
+    "lat": 4.7009694,
+    "lng": -74.146093
+  }
+}

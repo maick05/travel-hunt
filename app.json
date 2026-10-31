@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "travel-hunt",
+    "name": "Travel Hunt",
     "slug": "travel-hunt",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -20,7 +20,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "server",
+      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -35,6 +35,7 @@
       ]
     ],
     "experiments": {
+      "baseUrl": "/travel-hunt",
       "typedRoutes": true,
       "reactCompiler": true
     }

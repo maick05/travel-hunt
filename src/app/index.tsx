@@ -1,98 +1,87 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Link } from 'expo-router';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
+import { ScreenBackground } from '@/components/screen-background';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BannerCard, Card, Empty, IconBubble } from '@/components/ui';
+import { isSheetsConfigured } from '@/config/env';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { countdownLabel, formatDate } from '@/features/travel/format';
+import { tripBanner } from '@/features/travel/trip-banners';
+import { useTravelData } from '@/features/travel/use-travel-data';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+export default function TripsScreen() {
+  const { data, isLoading, error, refetch } = useTravelData();
 
-export default function HomeScreen() {
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
+    <ScreenBackground>
+      <ScrollView contentContainerStyle={styles.content}>
+        <ThemedText type="title">Viagens</ThemedText>
+        {!isSheetsConfigured && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Exibindo dados de exemplo. Configure EXPO_PUBLIC_SHEETS_ID e EXPO_PUBLIC_SHEETS_API_KEY para usar sua planilha.
           </ThemedText>
-        </ThemedView>
+        )}
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        {isLoading ? (
+          <ActivityIndicator />
+        ) : error ? (
+          <View style={styles.list}>
+            <ThemedText>{(error as Error).message}</ThemedText>
+            <Pressable onPress={() => refetch()}>
+              <ThemedText type="link">Tentar novamente</ThemedText>
+            </Pressable>
+          </View>
+        ) : !data?.travels.length ? (
+          <Empty>Nenhuma viagem cadastrada.</Empty>
+        ) : (
+          <View style={styles.list}>
+            {data.travels.map((t) => (
+              <Link key={t.name} href={{ pathname: '/trip', params: { name: t.name } }} asChild>
+                <Pressable style={({ pressed }) => pressed && styles.pressed}>
+                  {tripBanner(t.name) ? (
+                    <BannerCard
+                      source={tripBanner(t.name)}
+                      title={t.name}
+                      subtitle={`${formatDate(t.startDate)} → ${formatDate(t.endDate)} · ${countdownLabel(t.startDate, t.endDate)}`}
+                    />
+                  ) : (
+                    <Card>
+                      <View style={styles.row}>
+                        <IconBubble name="airplane-takeoff" size={48} />
+                        <View style={styles.flex}>
+                          <ThemedText type="subtitle">{t.name}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {formatDate(t.startDate)} → {formatDate(t.endDate)}
+                          </ThemedText>
+                          <ThemedText type="smallBold" themeColor="accent">
+                            {countdownLabel(t.startDate, t.endDate)}
+                          </ThemedText>
+                        </View>
+                      </View>
+                    </Card>
+                  )}
+                </Pressable>
+              </Link>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
+  container: { flex: 1 },
+  content: {
+    padding: Spacing.four,
     gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
     maxWidth: MaxContentWidth,
+    width: '100%',
+    alignSelf: 'center',
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  list: { gap: Spacing.two },
+  pressed: { opacity: 0.85 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  flex: { flex: 1 },
 });
