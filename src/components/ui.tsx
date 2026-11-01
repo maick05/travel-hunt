@@ -212,6 +212,7 @@ export function CostLines({ cost, currencies }: { cost: Cost; currencies: Curren
                 {b.person ? ` · ${b.person}` : ''}
                 {rateNote(b) ? ` · ${rateNote(b)}` : ''}
               </ThemedText>
+              <FileLink url={b.receipt} label="Comprovante" />
             </View>
             <View style={styles.costRight}>
               {brl !== null && <ThemedText type="smallBold">{formatBRL(brl)}</ThemedText>}
@@ -221,6 +222,18 @@ export function CostLines({ cost, currencies }: { cost: Cost; currencies: Curren
         );
       })}
     </View>
+  );
+}
+
+/** Botão para abrir o PDF da reserva (link do Drive) em nova aba; some se a célula não tiver link. */
+export function FileLink({ url, label = 'Reserva (PDF)' }: { url: string; label?: string }) {
+  if (!isLink(url)) return null;
+  return (
+    <ExternalLink href={url.trim() as never}>
+      <ThemedText type="small" style={styles.link}>
+        <MaterialCommunityIcons name="file-pdf-box" size={16} color={c.accent} /> {label}
+      </ThemedText>
+    </ExternalLink>
   );
 }
 

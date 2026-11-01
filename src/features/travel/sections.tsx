@@ -14,6 +14,7 @@ import {
     Empty,
     ExpandCard,
     Field,
+    FileLink,
     IconBubble,
     PlaceLink,
     StatusBadge,
@@ -223,6 +224,7 @@ function DayList({
                   </View>
                   <PlaceLink place={a.place} />
                   <Field label="Obs." value={a.notes} />
+                  <FileLink url={a.voucher} />
                   <ActivityCost data={data} code={a.code} />
                 </View>
               </View>
@@ -276,6 +278,7 @@ export function FlightsSection({ data }: { data: TripData }) {
                   </View>
                   <Field label="Partida" value={`${formatDateTime(f.departure)} · ${f.from}`} />
                   <Field label="Chegada" value={`${formatDateTime(f.arrival)} · ${f.to}`} />
+                  <FileLink url={f.voucher} />
                 </View>
               ))}
             </View>
@@ -318,6 +321,7 @@ export function HotelsSection({ data }: { data: TripData }) {
             <Field label="Plataforma" value={h.platform} />
             <Field label="Contato" value={h.contact} />
             <Field label="Reserva" value={h.code} />
+            <FileLink url={h.voucher} />
             <StatusBadge status={h.status} />
             <CostLines cost={cost} currencies={data.currencies} />
           </ExpandCard>
@@ -352,6 +356,7 @@ export function TransportSection({ data, focusKey }: { data: TripData; focusKey?
             }>
             <Field label="Saída" value={`${formatDateTime(t.departure)} · ${placeLabel(t.from)}`} />
             <Field label="Chegada" value={`${formatDateTime(t.arrival)} · ${placeLabel(t.to)}`} />
+            <FileLink url={t.voucher} />
             <Field label="Meio" value={[t.mode, t.platform].filter(Boolean).join(' · ')} />
             <StatusBadge status={t.status} />
             <CostLines cost={cost} currencies={data.currencies} />
@@ -464,6 +469,7 @@ export function MoneySection({ data }: { data: TripData }) {
                   {rateNote(b)}
                 </ThemedText>
               ) : null}
+              <FileLink url={b.receipt} label="Comprovante" />
             </View>
             <StatusBadge status={b.status} />
           </View>

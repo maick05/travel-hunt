@@ -73,7 +73,7 @@ export function formatRate(n: number): string {
 /** Observação sobre a cotação utilizada; vazio quando vale o câmbio padrão. */
 export function rateNote(bill: Bill): string {
   if (bill.usedRate === null) return '';
-  return bill.usedRate === 0 ? 'Sem custo (cotação 0)' : `Cotação utilizada: ${formatRate(bill.usedRate)}`;
+  return bill.usedRate === 0 ? 'Sem custo' : `Cotação utilizada: ${formatRate(bill.usedRate)}`;
 }
 
 export function mapsUrl(place: string): string {

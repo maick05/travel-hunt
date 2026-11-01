@@ -49,14 +49,60 @@ function iguais(a, b) {
 function lerAbas() {
   const ss = SpreadsheetApp.getActive();
   const fuso = ss.getSpreadsheetTimeZone();
+  const links = linksDosChips(ss);
   const abas = {};
   ss.getSheets().forEach((sheet) => {
-    abas[sheet.getName()] = sheet
+    const nome = sheet.getName();
+    abas[nome] = sheet
       .getDataRange()
       .getValues()
-      .map((linha) => linha.map((celula) => (celula instanceof Date ? serial(celula, fuso) : celula)));
+      .map((linha, r) =>
+        linha.map((celula, c) => {
+          const uri = links[nome] && links[nome][r] && links[nome][r][c];
+          if (uri) return uri; // chip de arquivo: devolve o link em vez do nome
+          return celula instanceof Date ? serial(celula, fuso) : celula;
+        }),
+      );
   });
   return abas;
+}
+
+// O valor de um chip de arquivo do Drive é só o nome; o link vem do serviço avançado "Google Sheets API"
+// (Serviços > + > Google Sheets API). Sem ele, os chips continuam devolvendo só o nome.
+function linksDosChips(ss, mostrarErro) {
+  const out = {};
+  try {
+    const grade = Sheets.Spreadsheets.get(ss.getId(), {
+      includeGridData: true,
+      fields: 'sheets(properties/title,data/rowData/values/chipRuns)',
+    });
+    (grade.sheets || []).forEach((s) => {
+      const mapa = {};
+      const linhas = (s.data && s.data[0] && s.data[0].rowData) || [];
+      linhas.forEach((linha, r) =>
+        (linha.values || []).forEach((cel, c) => {
+          const run = (cel.chipRuns || []).find(
+            (x) => x.chip && x.chip.richLinkProperties && x.chip.richLinkProperties.uri,
+          );
+          if (run) {
+            mapa[r] = mapa[r] || {};
+            mapa[r][c] = run.chip.richLinkProperties.uri;
+          }
+        }),
+      );
+      out[s.properties.title] = mapa;
+    });
+  } catch (e) {
+    if (mostrarErro) throw e;
+    // serviço não ativado ou sem permissão: segue sem os links
+  }
+  return out;
+}
+
+// Execute no editor para conferir: mostra os links de chips achados (ou o erro, se o serviço não estiver ativo).
+function testarLinks() {
+  const links = linksDosChips(SpreadsheetApp.getActive(), true);
+  Logger.log(JSON.stringify(links));
 }
 
 // Data/hora -> número serial do Sheets (dias desde 30/12/1899), como a API entrega.
