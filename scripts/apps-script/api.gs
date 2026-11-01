@@ -7,6 +7,8 @@
 // 3) Copie a URL terminada em /exec. Ao mudar este código, crie uma nova versão da implantação.
 
 const EPOCA_SHEETS = Date.UTC(1899, 11, 30);
+const ARQUIVO = /\.(pdf|png|jpe?g|webp)$/i;
+const linkPorNome = {};
 
 function doGet() {
   return resposta({ erro: 'Use POST.' });
@@ -60,6 +62,7 @@ function lerAbas() {
         linha.map((celula, c) => {
           const uri = links[nome] && links[nome][r] && links[nome][r][c];
           if (uri) return uri; // chip de arquivo: devolve o link em vez do nome
+          if (typeof celula === 'string' && ARQUIVO.test(celula.trim())) return urlDoArquivo(celula.trim());
           return celula instanceof Date ? serial(celula, fuso) : celula;
         }),
       );
@@ -99,10 +102,39 @@ function linksDosChips(ss, mostrarErro) {
   return out;
 }
 
+// Alternativa sem o serviço avançado: o valor da célula é o nome do arquivo, então procuramos no Drive por ele.
+// Usa o primeiro arquivo com esse nome que a sua conta enxerga; se não achar, devolve o nome.
+function urlDoArquivo(nome) {
+  if (!(nome in linkPorNome)) {
+    try {
+      const arquivos = DriveApp.getFilesByName(nome);
+      linkPorNome[nome] = arquivos.hasNext() ? arquivos.next().getUrl() : nome;
+    } catch (e) {
+      linkPorNome[nome] = nome;
+    }
+  }
+  return linkPorNome[nome];
+}
+
 // Execute no editor para conferir: mostra os links de chips achados (ou o erro, se o serviço não estiver ativo).
 function testarLinks() {
   const links = linksDosChips(SpreadsheetApp.getActive(), true);
   Logger.log(JSON.stringify(links));
+}
+
+// Execute no editor: pede a autorização do Drive (obrigatória) e mostra o que foi achado para cada arquivo.
+function testarArquivos() {
+  SpreadsheetApp.getActive()
+    .getSheets()
+    .forEach((sheet) =>
+      sheet.getDataRange().getValues().forEach((linha) =>
+        linha.forEach((celula) => {
+          if (typeof celula !== 'string' || !ARQUIVO.test(celula.trim())) return;
+          const arquivos = DriveApp.getFilesByName(celula.trim());
+          Logger.log(celula.trim() + ' -> ' + (arquivos.hasNext() ? arquivos.next().getUrl() : 'NÃO ENCONTRADO'));
+        }),
+      ),
+    );
 }
 
 // Data/hora -> número serial do Sheets (dias desde 30/12/1899), como a API entrega.

@@ -31,7 +31,7 @@ export default function RootLayout() {
               headerTitleStyle: { fontWeight: '700', fontSize: 18 },
             }}>
             <Stack.Screen name="index" options={{ title: 'Travel Hunt' }} />
-            <Stack.Screen name="trip" options={{ title: 'Viagem' }} />
+            <Stack.Screen name="trip" options={{ title: 'Travel Hunt' }} />
           </Stack>
         </PasswordGate>
       </ThemeProvider>

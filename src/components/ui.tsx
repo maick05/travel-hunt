@@ -9,6 +9,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import type { Cost } from '@/features/travel/costs';
 import {
     billToBRL,
+    feesNote,
     formatAmount,
     formatBRL,
     mapsUrl,
@@ -210,7 +211,7 @@ export function CostLines({ cost, currencies }: { cost: Cost; currencies: Curren
               <ThemedText type="small" themeColor="textSecondary">
                 {formatAmount(b.amount, currency, b.currency)}
                 {b.person ? ` · ${b.person}` : ''}
-                {rateNote(b) ? ` · ${rateNote(b)}` : ''}
+                {rateNote(b) || feesNote(b, currencies) ? ` · ${rateNote(b) || feesNote(b, currencies)}` : ''}
               </ThemedText>
               <FileLink url={b.receipt} label="Comprovante" />
             </View>

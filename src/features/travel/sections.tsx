@@ -25,6 +25,7 @@ import { costFor } from './costs';
 import {
     billToBRL,
     dayKey,
+    feesNote,
     formatAmount,
     formatBRL,
     formatDate,
@@ -89,14 +90,42 @@ function ItineraryMap({ data }: { data: TripData }) {
 }
 
 function ItineraryList({ data, onOpenTransport }: { data: TripData; onOpenTransport?: (key: string) => void }) {
-  const { groups, bannerOf } = useMemo(() => {
+  const { groups, bannerOf, spentIn } = useMemo(() => {
     const { cityOf, bannerOf } = createPlaces(data.locals);
     const byCity = new Map<string, typeof data.activities>();
     for (const a of data.activities) {
       const city = cityOf(a.place);
       byCity.set(city, [...(byCity.get(city) ?? []), a]);
     }
-    return { groups: [...byCity.entries()], bannerOf };
+
+    const totals = new Map<string, number>();
+    const add = (city: string, value: number) => {
+      const key = normText(city);
+      totals.set(key, (totals.get(key) ?? 0) + value);
+    };
+    for (const a of data.activities) add(cityOf(a.place), costFor(data, 'activities', a.code).totalBRL);
+    for (const m of data.meals) add(cityOf(m.place), costFor(data, 'meals', m.code).totalBRL);
+    const seenHotels = new Set<string>();
+    for (const h of data.hotels) {
+      if (seenHotels.has(h.code)) continue;
+      seenHotels.add(h.code);
+      add(cityOf(h.link) || cityOf(h.city), costFor(data, 'hotels', h.code).totalBRL);
+    }
+    // Só o destino conta; o valor da reserva de voo é dividido entre os trechos.
+    const legsByCode = new Map<string, Flight[]>();
+    for (const f of data.flights) legsByCode.set(f.code, [...(legsByCode.get(f.code) ?? []), f]);
+    for (const [code, legs] of legsByCode) {
+      const share = costFor(data, 'flights', code).totalBRL / legs.length;
+      for (const f of legs) add(cityOf(f.to), share);
+    }
+    const seenTransports = new Set<string>();
+    for (const t of data.transports) {
+      if (seenTransports.has(t.code)) continue;
+      seenTransports.add(t.code);
+      add(cityOf(t.to), costFor(data, 'transports', t.code).totalBRL);
+    }
+
+    return { groups: [...byCity.entries()], bannerOf, spentIn: (city: string) => totals.get(normText(city)) ?? 0 };
   }, [data]);
 
   if (groups.length === 1 && !groups[0][0]) {
@@ -110,7 +139,13 @@ function ItineraryList({ data, onOpenTransport }: { data: TripData; onOpenTransp
           key={city || 'sem-cidade'}
           title={city || 'Sem cidade'}
           banner={bannerOf(city)}
-          subtitle={`${items.length} ${items.length === 1 ? 'atividade' : 'atividades'} · ${formatDate(items[0].start)}`}>
+          subtitle={[
+            `${items.length} ${items.length === 1 ? 'atividade' : 'atividades'}`,
+            formatDate(items[0].start),
+            spentIn(city) > 0 ? `Gasto: ${formatBRL(spentIn(city))}` : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}>
           <DayList data={data} activities={items} onOpenTransport={onOpenTransport} />
         </Accordion>
       ))}
@@ -258,7 +293,12 @@ export function FlightsSection({ data }: { data: TripData }) {
                     {legs[0].passengers} · {legs.length} {legs.length === 1 ? 'trecho' : 'trechos'}
                   </ThemedText>
                 </View>
-                <CostTag cost={cost} />
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  {[...new Set(legs.map((l) => l.status))].map((s) => (
+                    <StatusBadge key={s} status={s} />
+                  ))}
+                  <CostTag cost={cost} />
+                </View>
               </View>
             }>
             <View style={styles.legs}>
@@ -315,6 +355,7 @@ export function HotelsSection({ data }: { data: TripData }) {
                   </ThemedText>
                   <CostTag cost={cost} />
                 </View>
+                <StatusBadge status={h.status} />
               </View>
             }>
             <PlaceLink place={h.link} />
@@ -322,7 +363,6 @@ export function HotelsSection({ data }: { data: TripData }) {
             <Field label="Contato" value={h.contact} />
             <Field label="Reserva" value={h.code} />
             <FileLink url={h.voucher} />
-            <StatusBadge status={h.status} />
             <CostLines cost={cost} currencies={data.currencies} />
           </ExpandCard>
         );
@@ -352,13 +392,13 @@ export function TransportSection({ data, focusKey }: { data: TripData; focusKey?
                   </ThemedText>
                   <CostTag cost={cost} />
                 </View>
+                <StatusBadge status={t.status} />
               </View>
             }>
             <Field label="Saída" value={`${formatDateTime(t.departure)} · ${placeLabel(t.from)}`} />
             <Field label="Chegada" value={`${formatDateTime(t.arrival)} · ${placeLabel(t.to)}`} />
             <FileLink url={t.voucher} />
             <Field label="Meio" value={[t.mode, t.platform].filter(Boolean).join(' · ')} />
-            <StatusBadge status={t.status} />
             <CostLines cost={cost} currencies={data.currencies} />
           </ExpandCard>
         );
@@ -464,9 +504,9 @@ export function MoneySection({ data }: { data: TripData }) {
                 {formatAmount(b.amount, rate(b.currency), b.currency)}
                 {brl !== null && b.currency !== 'R$' ? ` ≈ ${formatBRL(brl)}` : ''}
               </ThemedText>
-              {rateNote(b) ? (
+              {rateNote(b) || feesNote(b, data.currencies) ? (
                 <ThemedText type="small" themeColor="textSecondary">
-                  {rateNote(b)}
+                  {rateNote(b) || feesNote(b, data.currencies)}
                 </ThemedText>
               ) : null}
               <FileLink url={b.receipt} label="Comprovante" />

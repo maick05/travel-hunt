@@ -42,7 +42,7 @@ export default function TripScreen() {
 
   return (
     <ScreenBackground>
-      <Stack.Screen options={{ title: name || 'Viagem' }} />
+      <Stack.Screen options={{ title: 'Travel Hunt', headerTitle: name || 'Viagem' }} />
       <ScrollView contentContainerStyle={styles.content}>
         {isLoading ? (
           <ActivityIndicator />

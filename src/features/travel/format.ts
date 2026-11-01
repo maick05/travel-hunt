@@ -60,10 +60,34 @@ export function toBRL(amount: number | null, currency: Currency | undefined): nu
 /** Custo em R$ de um lançamento: a cotação utilizada, quando preenchida (0 = nada gasto), senão o câmbio da moeda. */
 export function billToBRL(bill: Bill, currencies: Currency[]): number | null {
   if (bill.usedRate !== null) return bill.amount === null ? null : bill.amount * bill.usedRate;
-  return toBRL(
+  const base = toBRL(
     bill.amount,
     currencies.find((c) => c.symbol === bill.currency),
   );
+  const fees = bill.usedRate === null ? foreignFees(bill, currencies) : null;
+  return base === null || !fees ? base : base * (1 + fees.spread) * (1 + fees.iof);
+}
+
+/** Estimativa de encargos: spread do cartão e IOF sobre o valor convertido. */
+export const SPREAD_CARTAO = 0.04;
+export const IOF_EXTERIOR = 0.035;
+
+/** Encargos de compra em moeda fiduciária estrangeira; null para R$, milhas e outros tipos. */
+export function foreignFees(bill: Bill, currencies: Currency[]): { spread: number; iof: number } | null {
+  const currency = currencies.find((c) => c.symbol === bill.currency);
+  if (!currency || currency.symbol === 'R$') return null;
+  if (!/fiduci/i.test(currency.type.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) return null;
+  const card = /cr[eé]dito/i.test(bill.paymentMethod);
+  return { spread: card ? SPREAD_CARTAO : 0, iof: IOF_EXTERIOR };
+}
+
+/** Texto dos encargos aplicados; vazio quando não há. */
+export function feesNote(bill: Bill, currencies: Currency[]): string {
+  if (bill.usedRate !== null) return '';
+  const fees = foreignFees(bill, currencies);
+  if (!fees) return '';
+  const pct = (n: number) => `${formatNumber(n * 100)}%`;
+  return fees.spread ? `Spread ${pct(fees.spread)} + IOF ${pct(fees.iof)}` : `IOF ${pct(fees.iof)}`;
 }
 
 export function formatRate(n: number): string {
