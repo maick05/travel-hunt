@@ -55,6 +55,7 @@ export const schemas = {
       paymentMethod: text('Meio de Pagamento'),
       status: text('Status'),
       person: text('Pessoa'),
+      usedRate: number('Cotação Utilizada'),
       trip: text('Viagem'),
     },
   },

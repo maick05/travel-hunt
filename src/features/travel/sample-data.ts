@@ -65,7 +65,7 @@ export const sampleRows: Record<TableKey, SheetRows> = {
     ['R$', 'R$', 'Real', 'Fiduciária', 1],
     ['EUR', '€', 'Euro', 'Fiduciária', 6.2],
     ['USD', '$', 'Dólar', 'Fiduciária', 5.43],
-    ['Smiles', ':)', 'Smiles', 'MIlha', 16],
+    ['Smiles', ':)', 'Smiles', 'MIlha', 0.016],
   ],
   locals: [
     ['Local', 'País', 'Localização Google', 'Banner'],

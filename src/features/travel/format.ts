@@ -1,4 +1,4 @@
-import type { Currency, DateValue } from './schema';
+import type { Bill, Currency, DateValue } from './schema';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -51,11 +51,29 @@ export function formatAmount(amount: number | null, currency: Currency | undefin
   return `${currency?.symbol ?? code} ${formatNumber(amount)}`;
 }
 
-/** Converte para R$. Moedas do tipo "Milha" têm câmbio por milheiro (1.000 milhas). */
+/** Converte para R$ pelo câmbio da aba Currency (milhas inclusive: o câmbio é por milha). */
 export function toBRL(amount: number | null, currency: Currency | undefined): number | null {
   if (amount === null || !currency || currency.rateBRL === null) return null;
-  const unit = currency.type.toLowerCase() === 'milha' ? 1000 : 1;
-  return (amount / unit) * currency.rateBRL;
+  return amount * currency.rateBRL;
+}
+
+/** Custo em R$ de um lançamento: a cotação utilizada, quando preenchida (0 = nada gasto), senão o câmbio da moeda. */
+export function billToBRL(bill: Bill, currencies: Currency[]): number | null {
+  if (bill.usedRate !== null) return bill.amount === null ? null : bill.amount * bill.usedRate;
+  return toBRL(
+    bill.amount,
+    currencies.find((c) => c.symbol === bill.currency),
+  );
+}
+
+export function formatRate(n: number): string {
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 5 }).format(n);
+}
+
+/** Observação sobre a cotação utilizada; vazio quando vale o câmbio padrão. */
+export function rateNote(bill: Bill): string {
+  if (bill.usedRate === null) return '';
+  return bill.usedRate === 0 ? 'Sem custo (cotação 0)' : `Cotação utilizada: ${formatRate(bill.usedRate)}`;
 }
 
 export function mapsUrl(place: string): string {

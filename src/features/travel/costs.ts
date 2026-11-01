@@ -1,4 +1,4 @@
-import { toBRL } from './format';
+import { billToBRL } from './format';
 import type { Bill } from './schema';
 import type { TripData } from './use-travel-data';
 
@@ -20,7 +20,7 @@ export type Cost = { bills: Bill[]; totalBRL: number };
 export function costFor(data: TripData, kind: CostKind, code: string): Cost {
   const bills = data.bills.filter((b) => normalize(b.type) === BILL_TYPE[kind] && b.reference === code);
   const totalBRL = bills.reduce(
-    (sum, b) => sum + (toBRL(b.amount, data.currencies.find((c) => c.symbol === b.currency)) ?? 0),
+    (sum, b) => sum + (billToBRL(b, data.currencies) ?? 0),
     0,
   );
   return { bills, totalBRL };

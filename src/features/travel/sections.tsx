@@ -7,31 +7,32 @@ import { PieChart, type ChartItem } from '@/components/charts';
 import { ThemedText } from '@/components/themed-text';
 import TripMap from '@/components/trip-map';
 import {
-  Accordion,
-  Card,
-  CostLines,
-  CostTag,
-  Empty,
-  ExpandCard,
-  Field,
-  IconBubble,
-  PlaceLink,
-  StatusBadge,
-  Tabs
+    Accordion,
+    Card,
+    CostLines,
+    CostTag,
+    Empty,
+    ExpandCard,
+    Field,
+    IconBubble,
+    PlaceLink,
+    StatusBadge,
+    Tabs
 } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { costFor } from './costs';
 import {
-  dayKey,
-  formatAmount,
-  formatBRL,
-  formatDate,
-  formatDateTime,
-  formatDayHeading,
-  formatDuration,
-  formatTime,
-  statusTone,
-  toBRL,
+    billToBRL,
+    dayKey,
+    formatAmount,
+    formatBRL,
+    formatDate,
+    formatDateTime,
+    formatDayHeading,
+    formatDuration,
+    formatTime,
+    rateNote,
+    statusTone,
 } from './format';
 import { buildMap } from './map-data';
 import { createPlaces, placeLabel } from './places';
@@ -415,7 +416,7 @@ export function MoneySection({ data }: { data: TripData }) {
   if (!data.bills.length) return <Empty />;
 
   const rate = (code: string) => data.currencies.find((c) => c.symbol === code);
-  const converted = data.bills.map((b) => ({ bill: b, brl: toBRL(b.amount, rate(b.currency)) }));
+  const converted = data.bills.map((b) => ({ bill: b, brl: billToBRL(b, data.currencies) }));
 
   const sum = (pred: (tone: ReturnType<typeof statusTone>) => boolean) =>
     converted.filter((c) => pred(statusTone(c.bill.status))).reduce((acc, c) => acc + (c.brl ?? 0), 0);
@@ -458,6 +459,11 @@ export function MoneySection({ data }: { data: TripData }) {
                 {formatAmount(b.amount, rate(b.currency), b.currency)}
                 {brl !== null && b.currency !== 'R$' ? ` ≈ ${formatBRL(brl)}` : ''}
               </ThemedText>
+              {rateNote(b) ? (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {rateNote(b)}
+                </ThemedText>
+              ) : null}
             </View>
             <StatusBadge status={b.status} />
           </View>

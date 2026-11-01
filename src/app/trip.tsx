@@ -7,7 +7,7 @@ import { ScreenBackground } from '@/components/screen-background';
 import { ThemedText } from '@/components/themed-text';
 import { BannerCard, Empty, Tabs } from '@/components/ui';
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
-import { countdownLabel, formatBRL, formatDate, toBRL } from '@/features/travel/format';
+import { billToBRL, countdownLabel, formatBRL, formatDate } from '@/features/travel/format';
 import {
     FlightsSection,
     FoodSection,
@@ -38,12 +38,7 @@ export default function TripScreen() {
 
   const travel = data?.travels.find((t) => t.name === name);
   const trip = useMemo(() => (data ? selectTrip(data, name) : null), [data, name]);
-  const totalBRL = trip
-    ? trip.bills.reduce(
-        (sum, b) => sum + (toBRL(b.amount, trip.currencies.find((c) => c.symbol === b.currency)) ?? 0),
-        0,
-      )
-    : 0;
+  const totalBRL = trip ? trip.bills.reduce((sum, b) => sum + (billToBRL(b, trip.currencies) ?? 0), 0) : 0;
 
   return (
     <ScreenBackground>

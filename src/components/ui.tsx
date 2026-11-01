@@ -8,12 +8,13 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import type { Cost } from '@/features/travel/costs';
 import {
-  formatAmount,
-  formatBRL,
-  mapsUrl,
-  statusTone,
-  toBRL,
-  type StatusTone,
+    billToBRL,
+    formatAmount,
+    formatBRL,
+    mapsUrl,
+    rateNote,
+    statusTone,
+    type StatusTone,
 } from '@/features/travel/format';
 import { bannerSource, isLink, placeLabel } from '@/features/travel/places';
 import type { Currency } from '@/features/travel/schema';
@@ -201,7 +202,7 @@ export function CostLines({ cost, currencies }: { cost: Cost; currencies: Curren
     <View style={styles.costBox}>
       {cost.bills.map((b, i) => {
         const currency = currencies.find((x) => x.symbol === b.currency);
-        const brl = toBRL(b.amount, currency);
+        const brl = billToBRL(b, currencies);
         return (
           <View key={`${b.description}-${i}`} style={styles.costLine}>
             <View style={styles.flex}>
@@ -209,6 +210,7 @@ export function CostLines({ cost, currencies }: { cost: Cost; currencies: Curren
               <ThemedText type="small" themeColor="textSecondary">
                 {formatAmount(b.amount, currency, b.currency)}
                 {b.person ? ` · ${b.person}` : ''}
+                {rateNote(b) ? ` · ${rateNote(b)}` : ''}
               </ThemedText>
             </View>
             <View style={styles.costRight}>
