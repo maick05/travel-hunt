@@ -35,7 +35,7 @@ export function legStyle(mode: string): { kind: LegKind; emoji: string } {
 const keyOf = (c: Coord) => `${c.lat.toFixed(3)},${c.lng.toFixed(3)}`;
 
 export function buildMap(data: TripData) {
-  const { resolve } = createPlaces(data.locals);
+  const { resolve, cityOf } = createPlaces(data.locals);
   const points = new Map<string, MapPoint>();
   const legs: MapLeg[] = [];
   const missing: string[] = [];
@@ -47,24 +47,44 @@ export function buildMap(data: TripData) {
     points.set(k, p);
   };
 
-  let prev: Coord | null = null;
+  let prev: { coord: Coord; city: string } | null = null;
   for (const a of data.activities) {
     const c = resolve(a.place)?.coord;
     if (!c) {
       if (!missing.includes(a.title)) missing.push(a.title);
+      prev = null;
       continue;
     }
-    addItem(c, CATEGORY_EMOJI[norm(a.category)] ?? '📍', { title: a.title, time: formatDateTime(a.start) });
+    const category = norm(a.category);
+    if (category !== 'aeroporto' && category !== 'transporte') {
+      addItem(c, CATEGORY_EMOJI[category] ?? '📍', { title: a.title, time: formatDateTime(a.start) });
+    }
 
-    if (prev && keyOf(prev) !== keyOf(c)) {
+    const city = cityOf(a.place);
+    const style = legStyle(a.transportMode);
+    if (prev && city && norm(prev.city) === norm(city) && keyOf(prev.coord) !== keyOf(c) &&
+      a.transportMode && !a.transportRef && style.kind !== 'air') {
       legs.push({
-        ...legStyle(a.transportMode),
-        from: [prev.lat, prev.lng],
+        ...style,
+        from: [prev.coord.lat, prev.coord.lng],
         to: [c.lat, c.lng],
-        label: [a.transportMode, a.transportRef].filter(Boolean).join(' · ') || a.title,
+        label: a.transportMode,
       });
     }
-    prev = c;
+    prev = { coord: c, city };
+  }
+
+  for (const transport of data.transports) {
+    const from = resolve(transport.from)?.coord;
+    const to = resolve(transport.to)?.coord;
+    if (from && to && keyOf(from) !== keyOf(to)) {
+      legs.push({
+        ...legStyle(transport.mode),
+        from: [from.lat, from.lng],
+        to: [to.lat, to.lng],
+        label: [transport.mode, transport.details].filter(Boolean).join(' · '),
+      });
+    }
   }
 
   for (const f of data.flights) {

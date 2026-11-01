@@ -73,7 +73,7 @@ export function ItinerarySection({
 function ItineraryMap({ data }: { data: TripData }) {
   const { points, legs, missing } = useMemo(() => buildMap(data), [data]);
 
-  if (!points.length) {
+  if (!points.length && !legs.length) {
     return <Empty>Nenhum lugar com coordenadas. Preencha a aba Locais na planilha.</Empty>;
   }
 

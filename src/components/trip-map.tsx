@@ -98,7 +98,9 @@ export default function TripMap({
         }
 
         L.polyline(path, options).addTo(m);
-        const mid = path[Math.floor(path.length / 2)];
+        const mid: LatLng = path.length === 2
+          ? [(path[0][0] + path[1][0]) / 2, (path[0][1] + path[1][1]) / 2]
+          : path[Math.floor(path.length / 2)];
         pin(mid, leg.emoji, esc(leg.label), true);
         bounds.push(...path);
       };
