@@ -384,8 +384,34 @@ export function TransportSection({ data, focusKey }: { data: TripData; focusKey?
 export function FoodSection({ data }: { data: TripData }) {
   if (!data.meals.length) return <Empty />;
 
-  const days = new Map<string, typeof data.meals>();
-  for (const m of data.meals) {
+  const { cityOf, bannerOf } = createPlaces(data.locals);
+  const cities = new Map<string, { city: string; meals: TripData['meals'] }>();
+  for (const meal of data.meals) {
+    const city = cityOf(meal.place).trim();
+    const key = cityCostKey(city);
+    const group = cities.get(key) ?? { city, meals: [] };
+    group.meals.push(meal);
+    cities.set(key, group);
+  }
+
+  return (
+    <View style={styles.list}>
+      {[...cities.entries()].map(([key, group]) => (
+        <Accordion
+          key={key}
+          title={group.city || 'Sem local'}
+          banner={bannerOf(group.city)}
+          subtitle={`${group.meals.length} ${group.meals.length === 1 ? 'refeição' : 'refeições'}`}>
+          <FoodDays data={data} meals={group.meals} />
+        </Accordion>
+      ))}
+    </View>
+  );
+}
+
+function FoodDays({ data, meals }: { data: TripData; meals: TripData['meals'] }) {
+  const days = new Map<string, TripData['meals']>();
+  for (const m of meals) {
     const key = dayKey(m.date);
     days.set(key, [...(days.get(key) ?? []), m]);
   }
