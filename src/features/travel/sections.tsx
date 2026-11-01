@@ -21,7 +21,7 @@ import {
   Tabs
 } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { costFor } from './costs';
+import { cityCostKey, costFor, costsByCity } from './costs';
 import {
   billToBRL,
   dayKey,
@@ -38,7 +38,7 @@ import {
 } from './format';
 import { buildMap } from './map-data';
 import { createPlaces, placeLabel } from './places';
-import type { Flight } from './schema';
+import type { Bill, Currency, Flight } from './schema';
 import type { TripData } from './use-travel-data';
 
 type ItineraryView = 'list' | 'map';
@@ -98,34 +98,8 @@ function ItineraryList({ data, onOpenTransport }: { data: TripData; onOpenTransp
       byCity.set(city, [...(byCity.get(city) ?? []), a]);
     }
 
-    const totals = new Map<string, number>();
-    const add = (city: string, value: number) => {
-      const key = normText(city);
-      totals.set(key, (totals.get(key) ?? 0) + value);
-    };
-    for (const a of data.activities) add(cityOf(a.place), costFor(data, 'activities', a.code).totalBRL);
-    for (const m of data.meals) add(cityOf(m.place), costFor(data, 'meals', m.code).totalBRL);
-    const seenHotels = new Set<string>();
-    for (const h of data.hotels) {
-      if (seenHotels.has(h.code)) continue;
-      seenHotels.add(h.code);
-      add(cityOf(h.link) || cityOf(h.city), costFor(data, 'hotels', h.code).totalBRL);
-    }
-    // Só o destino conta; o valor da reserva de voo é dividido entre os trechos.
-    const legsByCode = new Map<string, Flight[]>();
-    for (const f of data.flights) legsByCode.set(f.code, [...(legsByCode.get(f.code) ?? []), f]);
-    for (const [code, legs] of legsByCode) {
-      const share = costFor(data, 'flights', code).totalBRL / legs.length;
-      for (const f of legs) add(cityOf(f.to), share);
-    }
-    const seenTransports = new Set<string>();
-    for (const t of data.transports) {
-      if (seenTransports.has(t.code)) continue;
-      seenTransports.add(t.code);
-      add(cityOf(t.to), costFor(data, 'transports', t.code).totalBRL);
-    }
-
-    return { groups: [...byCity.entries()], bannerOf, spentIn: (city: string) => totals.get(normText(city)) ?? 0 };
+    const totals = costsByCity(data);
+    return { groups: [...byCity.entries()], bannerOf, spentIn: (city: string) => totals.get(cityCostKey(city))?.totalBRL ?? 0 };
   }, [data]);
 
   if (groups.length === 1 && !groups[0][0]) {
@@ -457,10 +431,17 @@ export function FoodSection({ data }: { data: TripData }) {
 const CATEGORY_COLORS = ['#4F8DF7', '#34C28A', '#F59E42', '#A678F0', '#F06A8A', '#3CC4D6'];
 const TONE_COLORS = { good: '#34C28A', warn: '#F59E42', neutral: '#8FA3BF' } as const;
 
+type MoneyView = 'charts' | 'bills' | 'cities';
+const MONEY_VIEWS: { key: MoneyView; label: string; icon: IconName }[] = [
+  { key: 'charts', label: 'Gráficos', icon: 'chart-pie' },
+  { key: 'bills', label: 'Despesas', icon: 'format-list-bulleted' },
+  { key: 'cities', label: 'Por local', icon: 'map-marker' },
+];
+
 export function MoneySection({ data }: { data: TripData }) {
+  const [view, setView] = useState<MoneyView>('charts');
   if (!data.bills.length) return <Empty />;
 
-  const rate = (code: string) => data.currencies.find((c) => c.symbol === code);
   const converted = data.bills.map((b) => ({ bill: b, brl: billToBRL(b, data.currencies) }));
 
   const sum = (pred: (tone: ReturnType<typeof statusTone>) => boolean) =>
@@ -489,33 +470,62 @@ export function MoneySection({ data }: { data: TripData }) {
         <Field label="Pendente" value={formatBRL(sum((t) => t !== 'good'))} />
       </Card>
 
-      <PieChart title="Despesas por categoria" items={byCategory} format={formatBRL} />
-      <PieChart title="Despesas por status" items={byStatus} format={formatBRL} />
+      <Tabs tabs={MONEY_VIEWS} value={view} onChange={setView} />
+      {view === 'charts' ? (
+        <>
+          <PieChart title="Despesas por categoria" items={byCategory} format={formatBRL} />
+          <PieChart title="Despesas por status" items={byStatus} format={formatBRL} />
+        </>
+      ) : view === 'bills' ? (
+        converted.map(({ bill, brl }, index) => (
+          <BillCard key={`${bill.reference}-${bill.description}-${index}`} bill={bill} brl={brl} currencies={data.currencies} />
+        ))
+      ) : (
+        <CityCosts data={data} />
+      )}
+    </View>
+  );
+}
 
-      {converted.map(({ bill: b, brl }, i) => (
-        <Card key={`${b.reference}-${b.description}-${i}`}>
-          <View style={styles.row}>
-            <View style={styles.flex}>
-              <ThemedText type="smallBold">{b.description}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {[b.type, b.person, b.paymentMethod].filter(Boolean).join(' · ')}
-              </ThemedText>
-              <ThemedText type="small">
-                {formatAmount(b.amount, rate(b.currency), b.currency)}
-                {brl !== null && b.currency !== 'R$' ? ` ≈ ${formatBRL(brl)}` : ''}
-              </ThemedText>
-              {rateNote(b) || feesNote(b, data.currencies) ? (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {rateNote(b) || feesNote(b, data.currencies)}
-                </ThemedText>
-              ) : null}
-              <FileLink url={b.receipt} label="Comprovante" />
-            </View>
-            <StatusBadge status={b.status} />
-          </View>
-        </Card>
+function CityCosts({ data }: { data: TripData }) {
+  const cities = [...costsByCity(data).entries()];
+  const { bannerOf } = createPlaces(data.locals);
+  if (!cities.length) return <Empty>Nenhuma despesa vinculada a um local.</Empty>;
+  return (
+    <View style={styles.list}>
+      {cities.map(([key, city]) => (
+        <Accordion key={key} title={city.city || 'Sem local'} banner={bannerOf(city.city)} subtitle={`Total estimado: ${formatBRL(city.totalBRL)}`}>
+          {city.bills.map(({ bill, brl, share }, index) => (
+            <BillCard key={`${bill.reference}-${bill.description}-${index}`} bill={bill} brl={brl} currencies={data.currencies} share={share} />
+          ))}
+        </Accordion>
       ))}
     </View>
+  );
+}
+
+function BillCard({ bill, brl, currencies, share = 1 }: { bill: Bill; brl: number | null; currencies: Currency[]; share?: number }) {
+  const currency = currencies.find((item) => item.symbol === bill.currency);
+  const note = rateNote(bill) || feesNote(bill, currencies);
+  return (
+    <Card>
+      <View style={styles.row}>
+        <View style={styles.flex}>
+          <ThemedText type="smallBold">{bill.description}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {[bill.type, bill.person, bill.paymentMethod].filter(Boolean).join(' · ')}
+          </ThemedText>
+          <ThemedText type="small">
+            {formatAmount(bill.amount, currency, bill.currency)}
+            {brl !== null && (bill.currency !== 'R$' || share !== 1) ? ` ≈ ${formatBRL(brl)}` : ''}
+          </ThemedText>
+          {share !== 1 ? <ThemedText type="small" themeColor="textSecondary">Parcela do voo neste local</ThemedText> : null}
+          {note ? <ThemedText type="small" themeColor="textSecondary">{note}</ThemedText> : null}
+          <FileLink url={bill.receipt} label="Comprovante" />
+        </View>
+        <StatusBadge status={bill.status} />
+      </View>
+    </Card>
   );
 }
 
