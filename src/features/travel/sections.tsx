@@ -7,34 +7,34 @@ import { PieChart, type ChartItem } from '@/components/charts';
 import { ThemedText } from '@/components/themed-text';
 import TripMap from '@/components/trip-map';
 import {
-    Accordion,
-    Card,
-    CostLines,
-    CostTag,
-    Empty,
-    ExpandCard,
-    Field,
-    FileLink,
-    IconBubble,
-    PlaceLink,
-    StatusBadge,
-    Tabs
+  Accordion,
+  Card,
+  CostLines,
+  CostTag,
+  Empty,
+  ExpandCard,
+  Field,
+  FileLink,
+  IconBubble,
+  PlaceLink,
+  StatusBadge,
+  Tabs
 } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { costFor } from './costs';
 import {
-    billToBRL,
-    dayKey,
-    feesNote,
-    formatAmount,
-    formatBRL,
-    formatDate,
-    formatDateTime,
-    formatDayHeading,
-    formatDuration,
-    formatTime,
-    rateNote,
-    statusTone,
+  billToBRL,
+  dayKey,
+  feesNote,
+  formatAmount,
+  formatBRL,
+  formatDate,
+  formatDateTime,
+  formatDayHeading,
+  formatDuration,
+  formatTime,
+  rateNote,
+  statusTone,
 } from './format';
 import { buildMap } from './map-data';
 import { createPlaces, placeLabel } from './places';
@@ -443,7 +443,7 @@ export function FoodSection({ data }: { data: TripData }) {
                     <StatusBadge status={m.status} />
                   </View>
                 }>
-                <PlaceLink place={m.place} />
+                <Field label="Cidade" value={m.place} />
                 <CostLines cost={cost} currencies={data.currencies} />
               </ExpandCard>
             );
