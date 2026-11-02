@@ -69,7 +69,11 @@ export function buildMap(data: TripData) {
       continue;
     }
     const category = norm(a.category);
-    const emoji = category === 'transporte' && a.transportMode
+    const ownTransport = a.transportRef && data.transports.some((transport) =>
+      norm(transport.details) === norm(a.transportRef) && norm(transport.platform) === 'conducao propria');
+    const emoji = ownTransport && (category === 'transporte' || category === 'traslado')
+      ? '🚙'
+      : category === 'transporte' && a.transportMode
       ? legStyle(a.transportMode).emoji
       : CATEGORY_EMOJI[category] ?? '📍';
     const priority = category === 'aeroporto' ? PRIORITY.airport
@@ -106,6 +110,7 @@ export function buildMap(data: TripData) {
       const style = legStyle(transport.mode);
       legs.push({
         ...style,
+        emoji: norm(transport.platform) === 'conducao propria' ? '🚙' : style.emoji,
         from: [from.lat, from.lng],
         to: [to.lat, to.lng],
         label: [transport.mode, transport.details].filter(Boolean).join(' · '),
