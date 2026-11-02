@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 
 import { useEffect, useRef } from 'react';
 
+import { formatDateTime } from '@/features/travel/format';
 import type { MapLeg, MapPoint } from '@/features/travel/map-data';
 
 const COLORS = { air: '#4F8DF7', road: '#F59E42', foot: '#34C28A' } as const;
@@ -112,9 +113,17 @@ export default function TripMap({
         const minutes = routedDuration === null ? null : Math.max(1, Math.round(routedDuration / 60));
         const estimatedTime = minutes === null ? '' : [Math.floor(minutes / 60) ? `${Math.floor(minutes / 60)}h` : '', minutes % 60 ? `${minutes % 60}min` : ''].filter(Boolean).join(' ');
         const time = leg.duration
-          ? `Intervalo dos horários: ${leg.duration}${leg.kind === 'air' ? ' (sem ajuste de fuso)' : ''}`
+          ? `Duração: ${leg.duration}${leg.kind === 'air' ? ' (sem ajuste de fuso)' : ''}`
           : leg.estimateDuration && estimatedTime ? `Tempo estimado: ${estimatedTime}` : 'Tempo indisponível';
         const details = [leg.label, `Destino: ${leg.destination}`, `${isRouted ? 'Distância' : 'Distância em linha reta'}: ${km} km`, time];
+        if (leg.kind !== 'air') {
+          const departure = leg.departure === null ? 'indisponível' : formatDateTime(leg.departure);
+          const arrival = leg.arrival ?? (leg.departure !== null && leg.estimateDuration && routedDuration !== null && routedDuration >= 0
+            ? leg.departure + routedDuration * 1000
+            : null);
+          details.push(`${leg.departureEstimated ? 'Partida estimada' : 'Partida'}: ${departure}`);
+          details.push(`Chegada prevista: ${arrival === null ? 'indisponível' : formatDateTime(arrival)}`);
+        }
         pin(mid, leg.emoji, details.map((detail) => `<div>${esc(detail)}</div>`).join(''), leg.priority, true);
         bounds.push(...path);
       };

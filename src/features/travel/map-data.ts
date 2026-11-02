@@ -15,6 +15,9 @@ export type MapLeg = {
   duration: string;
   estimateDuration: boolean;
   priority: number;
+  departure: number | null;
+  arrival: number | null;
+  departureEstimated: boolean;
 };
 
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -56,7 +59,7 @@ export function buildMap(data: TripData) {
     points.set(k, p);
   };
 
-  let prev: { coord: Coord; city: string } | null = null;
+  let prev: { coord: Coord; city: string; end: number | null } | null = null;
   for (const a of data.activities) {
     const c = resolve(a.place)?.coord;
     if (!c) {
@@ -87,9 +90,12 @@ export function buildMap(data: TripData) {
         duration: '',
         estimateDuration: style.kind === 'foot' || ['automovel', 'carro', 'taxi', 'uber'].includes(norm(a.transportMode)),
         priority: PRIORITY.route,
+        departure: prev.end !== null && a.start !== null && prev.end <= a.start ? prev.end : null,
+        arrival: null,
+        departureEstimated: true,
       });
     }
-    prev = { coord: c, city };
+    prev = { coord: c, city, end: a.end };
   }
 
   for (const transport of data.transports) {
@@ -106,6 +112,9 @@ export function buildMap(data: TripData) {
         duration: formatDuration(transport.departure, transport.arrival),
         estimateDuration: ['a pe', 'automovel', 'carro', 'taxi', 'uber'].includes(norm(transport.mode)),
         priority: style.kind === 'air' ? PRIORITY.flight : PRIORITY.route,
+        departure: transport.departure,
+        arrival: transport.arrival,
+        departureEstimated: false,
       });
     }
   }
@@ -127,6 +136,9 @@ export function buildMap(data: TripData) {
         duration: formatDuration(f.departure, f.arrival),
         estimateDuration: false,
         priority: PRIORITY.flight,
+        departure: f.departure,
+        arrival: f.arrival,
+        departureEstimated: false,
       });
     }
   }
