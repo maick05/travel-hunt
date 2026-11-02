@@ -22,7 +22,11 @@ function toDate(v: SheetCell): number | null {
 
 export function parseTable<S extends FieldSpec>(rows: SheetRows, fields: S): Row<S>[] {
   const [header = [], ...body] = rows;
-  const columnOf = new Map(header.map((h, i) => [toText(h).toLowerCase(), i]));
+  const columnOf = new Map<string, number[]>();
+  header.forEach((value, index) => {
+    const name = toText(value).toLowerCase();
+    columnOf.set(name, [...(columnOf.get(name) ?? []), index]);
+  });
   const keys = Object.keys(fields);
 
   const result: Row<S>[] = [];
@@ -32,7 +36,8 @@ export function parseTable<S extends FieldSpec>(rows: SheetRows, fields: S): Row
 
     for (const key of keys) {
       const field = fields[key];
-      const col = columnOf.get(field.header.toLowerCase());
+      const columns = columnOf.get(field.header.toLowerCase());
+      const col = columns?.[field.occurrence ?? columns.length - 1];
       const cell = col === undefined ? undefined : row[col];
       const value = field.type === 'text' ? toText(cell) : field.type === 'number' ? toNumber(cell) : toDate(cell);
       item[key] = value;

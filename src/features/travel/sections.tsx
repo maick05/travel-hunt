@@ -525,6 +525,8 @@ function FoodDays({ data, meals }: { data: TripData; meals: TripData['meals'] })
                   </View>
                 }>
                 <Field label="Cidade" value={m.place} />
+                <Field label="Cardápio" value={m.menu} />
+                <FileLink url={m.menuFile} label="Abrir cardápio" />
                 <CostLines cost={cost} currencies={data.currencies} />
               </ExpandCard>
             );

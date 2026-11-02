@@ -2,9 +2,9 @@ export type SheetCell = string | number | boolean | null | undefined;
 export type SheetRows = SheetCell[][];
 
 type FieldType = 'text' | 'number' | 'date';
-type Field<T extends FieldType = FieldType> = { header: string; type: T };
+type Field<T extends FieldType = FieldType> = { header: string; type: T; occurrence?: number };
 
-const text = (header: string): Field<'text'> => ({ header, type: 'text' });
+const text = (header: string, occurrence?: number): Field<'text'> => ({ header, type: 'text', occurrence });
 const number = (header: string): Field<'number'> => ({ header, type: 'number' });
 const date = (header: string): Field<'date'> => ({ header, type: 'date' });
 
@@ -102,6 +102,8 @@ export const schemas = {
       date: date('Data'),
       type: text('Tipo Refeição'),
       description: text('Descrição'),
+      menu: text('Cardápio', 0),
+      menuFile: text('Cardápio', 1),
       place: text('Local'),
       status: text('Status'),
       trip: text('Viagem'),
