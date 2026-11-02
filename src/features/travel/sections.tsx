@@ -548,6 +548,28 @@ const MONEY_VIEWS: { key: MoneyView; label: string; icon: IconName }[] = [
   { key: 'cities', label: 'Por local', icon: 'map-marker' },
 ];
 
+const BILL_TYPE_ICONS: Record<string, IconName> = {
+  atividade: 'ticket-confirmation',
+  comida: 'food',
+  hospedagem: 'bed',
+  transporte: 'car',
+  voo: 'airplane',
+};
+
+const BILL_CATEGORY_ICONS: Record<string, IconName> = {
+  combustivel: 'gas-station',
+  comida: 'food',
+  hospedagem: 'bed',
+  ingresso: 'ticket-confirmation',
+  passagem: 'ticket',
+  'transporte privativo': 'car',
+};
+
+function billIcon(value: string | null, kind: 'type' | 'category'): IconName {
+  const normalized = (value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  return (kind === 'type' ? BILL_TYPE_ICONS : BILL_CATEGORY_ICONS)[normalized] ?? (kind === 'type' ? 'shape-outline' : 'tag-outline');
+}
+
 export function MoneySection({ data }: { data: TripData }) {
   const [view, setView] = useState<MoneyView>('charts');
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -594,6 +616,7 @@ export function MoneySection({ data }: { data: TripData }) {
         <View style={styles.filterRow}>
           <FilterSelect
             label="Tipo"
+            kind="type"
             value={selectedType}
             options={types}
             emptyLabel="Sem tipo"
@@ -601,6 +624,7 @@ export function MoneySection({ data }: { data: TripData }) {
           />
           <FilterSelect
             label="Categoria"
+            kind="category"
             value={selectedCategory}
             options={categories}
             emptyLabel="Sem categoria"
@@ -624,8 +648,9 @@ export function MoneySection({ data }: { data: TripData }) {
   );
 }
 
-function FilterSelect({ label, value, options, emptyLabel, onChange }: {
+function FilterSelect({ label, kind, value, options, emptyLabel, onChange }: {
   label: string;
+  kind: 'type' | 'category';
   value: string | null;
   options: string[];
   emptyLabel: string;
@@ -638,6 +663,7 @@ function FilterSelect({ label, value, options, emptyLabel, onChange }: {
     <View style={styles.filterField}>
       <ThemedText type="small" themeColor="textSecondary">{label}</ThemedText>
       <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${optionLabel(value)}`} onPress={() => setOpen(true)} style={styles.filterSelect}>
+        <MaterialCommunityIcons name={billIcon(value, kind)} size={18} color={Colors.light.accent} />
         <ThemedText type="small" numberOfLines={1} style={styles.filterValue}>{optionLabel(value)}</ThemedText>
         <MaterialCommunityIcons name="chevron-down" size={20} color={Colors.light.textSecondary} />
       </Pressable>
@@ -656,9 +682,11 @@ function FilterSelect({ label, value, options, emptyLabel, onChange }: {
                 <Pressable
                   key={option === null ? '__all__' : `value-${option}`}
                   accessibilityRole="radio"
+                  accessibilityLabel={optionLabel(option)}
                   accessibilityState={{ checked: value === option }}
                   onPress={() => { onChange(option); setOpen(false); }}
                   style={styles.filterOption}>
+                  <MaterialCommunityIcons name={billIcon(option, kind)} size={18} color={Colors.light.accent} />
                   <ThemedText type="small" style={styles.filterValue}>{optionLabel(option)}</ThemedText>
                   {value === option && <MaterialCommunityIcons name="check" size={20} color={Colors.light.accent} />}
                 </Pressable>
@@ -703,8 +731,14 @@ function BillCard({ bill, brl, currencies, share = 1 }: { bill: Bill; brl: numbe
       <View style={styles.row}>
         <View style={styles.flex}>
           <ThemedText type="smallBold">{bill.description}</ThemedText>
+          {(bill.type || bill.category) ? (
+            <View style={styles.metaRow}>
+              {bill.type ? <Meta icon={billIcon(bill.type, 'type')} text={bill.type} /> : null}
+              {bill.category ? <Meta icon={billIcon(bill.category, 'category')} text={bill.category} /> : null}
+            </View>
+          ) : null}
           <ThemedText type="small" themeColor="textSecondary">
-            {[bill.type, bill.category, bill.person, bill.paymentMethod].filter(Boolean).join(' · ')}
+            {[bill.person, bill.paymentMethod].filter(Boolean).join(' · ')}
           </ThemedText>
           <ThemedText type="small">
             {formatAmount(bill.amount, currency, bill.currency)}
