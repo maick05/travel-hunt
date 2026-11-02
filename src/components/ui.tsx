@@ -61,19 +61,22 @@ export function BannerCard({
   title,
   subtitle,
   trailing,
+  leading,
   compact = false,
 }: {
   source: ImageSourcePropType | undefined;
   title: string;
   subtitle?: string;
   trailing?: React.ReactNode;
+  leading?: React.ReactNode;
   /** Versão menor, para subdivisões (ex.: cidade dentro da viagem). */
   compact?: boolean;
 }) {
   return (
     <View style={[styles.banner, compact && styles.bannerCompact]}>
       <ImageBackground source={source ?? {}} resizeMode="cover" style={styles.bannerImage}>
-        <View style={styles.bannerOverlay}>
+        <View style={[styles.bannerOverlay, !!leading && styles.bannerOverlayLeading]}>
+          {leading ? <View style={styles.bannerLeading}>{leading}</View> : null}
           <View style={styles.flex}>
             <ThemedText type={compact ? 'subtitle' : 'title'} style={styles.bannerText}>
               {title}
@@ -275,22 +278,29 @@ export function Tabs<T extends string>({
   tabs,
   value,
   onChange,
+  secondary = false,
 }: {
   tabs: { key: T; label: string; icon: IconName }[];
   value: T;
   onChange: (key: T) => void;
+  secondary?: boolean;
 }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.tabs, secondary && styles.tabsSecondary]}>
       {tabs.map((t) => {
         const active = t.key === value;
+        const color = secondary ? (active ? c.text : c.textSecondary) : (active ? '#FFFFFF' : c.text);
         return (
           <Pressable
             key={t.key}
             onPress={() => onChange(t.key)}
-            style={[styles.tab, active ? { backgroundColor: c.accent } : styles.tabIdle]}>
-            <MaterialCommunityIcons name={t.icon} size={18} color={active ? '#FFFFFF' : c.textSecondary} />
-            <ThemedText type="smallBold" style={{ color: active ? '#FFFFFF' : c.text }}>
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            style={secondary
+              ? [styles.tab, styles.tabSecondary, active && styles.tabSecondaryActive]
+              : [styles.tab, active ? { backgroundColor: c.accent } : styles.tabIdle]}>
+            <MaterialCommunityIcons name={t.icon} size={18} color={secondary ? color : (active ? '#FFFFFF' : c.textSecondary)} />
+            <ThemedText type="smallBold" style={{ color }}>
               {t.label}
             </ThemedText>
           </Pressable>
@@ -336,6 +346,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
   },
   bannerText: { color: '#FFFFFF' },
+  bannerOverlayLeading: { paddingTop: 68 },
+  bannerLeading: { position: 'absolute', top: Spacing.two, left: Spacing.two },
   accordionBody: { gap: Spacing.two },
   accordionHeaderSub: { padding: Spacing.two, backgroundColor: c.backgroundElement, borderWidth: 1, borderColor: c.border },
   accordionBodySub: { paddingLeft: Spacing.two, borderLeftWidth: 2, borderLeftColor: c.accentSoft },
@@ -368,4 +380,7 @@ const styles = StyleSheet.create({
     borderRadius: 99,
   },
   tabIdle: { backgroundColor: c.backgroundElement, borderWidth: 1, borderColor: c.border },
+  tabsSecondary: { alignSelf: 'flex-start', gap: Spacing.half, padding: Spacing.half, borderRadius: Spacing.two, backgroundColor: '#C6D6EE' },
+  tabSecondary: { minHeight: 44, borderRadius: 6, paddingVertical: Spacing.one },
+  tabSecondaryActive: { backgroundColor: c.backgroundElement },
 });

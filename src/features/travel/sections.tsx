@@ -60,7 +60,7 @@ export function ItinerarySection({
 
   return (
     <View style={styles.list}>
-      <Tabs tabs={VIEWS} value={view} onChange={setView} />
+      <Tabs tabs={VIEWS} value={view} onChange={setView} secondary />
       {view === 'map' ? (
         <ItineraryMap data={data} />
       ) : (
@@ -372,7 +372,7 @@ export function TransportSection({ data, focusKey }: { data: TripData; focusKey?
 
   return (
     <View style={styles.list}>
-      <Tabs tabs={TRANSPORT_VIEWS} value={view} onChange={setView} />
+      <Tabs tabs={TRANSPORT_VIEWS} value={view} onChange={setView} secondary />
       {view === 'list' ? (
         <TransportCards data={data} transports={data.transports} focusKey={focusKey} />
       ) : (
@@ -541,7 +541,7 @@ export function MoneySection({ data }: { data: TripData }) {
         <Field label="Pendente" value={formatBRL(sum((t) => t !== 'good'))} />
       </Card>
 
-      <Tabs tabs={MONEY_VIEWS} value={view} onChange={setView} />
+      <Tabs tabs={MONEY_VIEWS} value={view} onChange={setView} secondary />
       {view === 'charts' ? (
         <>
           <PieChart title="Despesas por categoria" items={byCategory} format={formatBRL} />
