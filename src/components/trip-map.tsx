@@ -15,7 +15,7 @@ const esc = (s: string) =>
 type LatLng = [number, number];
 
 /** Rota por estrada/calçada via OSRM; devolve null se o serviço falhar. */
-async function route(leg: MapLeg, signal: AbortSignal): Promise<LatLng[] | null> {
+async function route(leg: MapLeg, signal: AbortSignal): Promise<{ path: LatLng[]; distance: number; duration: number } | null> {
   const base =
     leg.kind === 'foot'
       ? 'https://routing.openstreetmap.de/routed-foot/route/v1/foot'
@@ -24,9 +24,9 @@ async function route(leg: MapLeg, signal: AbortSignal): Promise<LatLng[] | null>
   try {
     const res = await fetch(`${base}/${coords}?overview=full&geometries=geojson`, { signal });
     if (!res.ok) return null;
-    const json = (await res.json()) as { routes?: { geometry: { coordinates: [number, number][] } }[] };
-    const line = json.routes?.[0]?.geometry.coordinates;
-    return line ? line.map(([lng, lat]) => [lat, lng]) : null;
+    const json = (await res.json()) as { routes?: { geometry: { coordinates: [number, number][] }; distance: number; duration: number }[] };
+    const result = json.routes?.[0];
+    return result ? { path: result.geometry.coordinates.map(([lng, lat]) => [lat, lng]), distance: result.distance, duration: result.duration } : null;
   } catch {
     return null;
   }
@@ -84,13 +84,19 @@ export default function TripMap({
         const style = { color: COLORS[leg.kind], weight: 4, opacity: 0.85 };
         const straight: LatLng[] = [leg.from, leg.to];
         let path = straight;
+        let distance = m.distance(leg.from, leg.to);
+        let routedDuration: number | null = null;
+        let isRouted = false;
         let options: import('leaflet').PolylineOptions = leg.kind === 'air' ? { ...style, dashArray: '4 10' } : style;
 
         if (leg.kind !== 'air') {
           const routed = await route(leg, abort.signal);
           if (cancelled) return;
-          if (routed && routed.length > 1) {
-            path = routed;
+          if (routed && routed.path.length > 1 && Number.isFinite(routed.distance)) {
+            path = routed.path;
+            distance = routed.distance;
+            routedDuration = Number.isFinite(routed.duration) ? routed.duration : null;
+            isRouted = true;
             if (leg.kind === 'foot') options = { ...style, dashArray: '2 8' };
           } else {
             options = { ...style, dashArray: '4 10', opacity: 0.5 };
@@ -101,7 +107,14 @@ export default function TripMap({
         const mid: LatLng = path.length === 2
           ? [(path[0][0] + path[1][0]) / 2, (path[0][1] + path[1][1]) / 2]
           : path[Math.floor(path.length / 2)];
-        pin(mid, leg.emoji, esc(leg.label), true);
+        const km = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(distance / 1000);
+        const minutes = routedDuration === null ? null : Math.max(1, Math.round(routedDuration / 60));
+        const estimatedTime = minutes === null ? '' : [Math.floor(minutes / 60) ? `${Math.floor(minutes / 60)}h` : '', minutes % 60 ? `${minutes % 60}min` : ''].filter(Boolean).join(' ');
+        const time = leg.duration
+          ? `Intervalo dos horários: ${leg.duration}${leg.kind === 'air' ? ' (sem ajuste de fuso)' : ''}`
+          : leg.estimateDuration && estimatedTime ? `Tempo estimado: ${estimatedTime}` : 'Tempo indisponível';
+        const details = [leg.label, `Destino: ${leg.destination}`, `${isRouted ? 'Distância' : 'Distância em linha reta'}: ${km} km`, time];
+        pin(mid, leg.emoji, details.map((detail) => `<div>${esc(detail)}</div>`).join(''), true);
         bounds.push(...path);
       };
 

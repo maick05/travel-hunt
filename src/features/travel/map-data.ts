@@ -1,4 +1,4 @@
-import { formatDateTime } from './format';
+import { formatDateTime, formatDuration } from './format';
 import { createPlaces, type Coord } from './places';
 import type { TripData } from './use-travel-data';
 
@@ -11,6 +11,9 @@ export type MapLeg = {
   from: [number, number];
   to: [number, number];
   label: string;
+  destination: string;
+  duration: string;
+  estimateDuration: boolean;
 };
 
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -56,9 +59,10 @@ export function buildMap(data: TripData) {
       continue;
     }
     const category = norm(a.category);
-    if (category !== 'aeroporto' && category !== 'transporte') {
-      addItem(c, CATEGORY_EMOJI[category] ?? '📍', { title: a.title, time: formatDateTime(a.start) });
-    }
+    const emoji = category === 'transporte' && a.transportMode
+      ? legStyle(a.transportMode).emoji
+      : CATEGORY_EMOJI[category] ?? '📍';
+    addItem(c, emoji, { title: a.title, time: formatDateTime(a.start) });
 
     const city = cityOf(a.place);
     const style = legStyle(a.transportMode);
@@ -69,6 +73,9 @@ export function buildMap(data: TripData) {
         from: [prev.coord.lat, prev.coord.lng],
         to: [c.lat, c.lng],
         label: a.transportMode,
+        destination: a.title || resolve(a.place)?.name || a.place,
+        duration: '',
+        estimateDuration: style.kind === 'foot' || ['automovel', 'carro', 'taxi', 'uber'].includes(norm(a.transportMode)),
       });
     }
     prev = { coord: c, city };
@@ -83,6 +90,9 @@ export function buildMap(data: TripData) {
         from: [from.lat, from.lng],
         to: [to.lat, to.lng],
         label: [transport.mode, transport.details].filter(Boolean).join(' · '),
+        destination: resolve(transport.to)?.name || transport.to,
+        duration: formatDuration(transport.departure, transport.arrival),
+        estimateDuration: ['a pe', 'automovel', 'carro', 'taxi', 'uber'].includes(norm(transport.mode)),
       });
     }
   }
@@ -100,6 +110,9 @@ export function buildMap(data: TripData) {
         from: [from.lat, from.lng],
         to: [to.lat, to.lng],
         label: `${name}: ${f.fromAirport} → ${f.toAirport}`,
+        destination: [f.toAirport, f.to].filter(Boolean).join(' · '),
+        duration: formatDuration(f.departure, f.arrival),
+        estimateDuration: false,
       });
     }
   }
