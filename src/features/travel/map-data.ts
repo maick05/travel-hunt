@@ -24,7 +24,7 @@ const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').t
 const PRIORITY = { other: 0, route: 1, sightseeing: 2, transport: 3, airport: 4, flight: 5 } as const;
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  aeroporto: '✈️',
+  aeroporto: '🛂',
   traslado: '📍',
   hotel: '🏨',
   passeio: '📸',
@@ -129,8 +129,8 @@ export function buildMap(data: TripData) {
     const from = resolve(f.from)?.coord;
     const to = resolve(f.to)?.coord;
     const name = `${f.airline} ${f.flightNumber}`.trim();
-    if (from) addItem(from, '✈️', PRIORITY.flight, { title: `Partida · ${name} → ${f.toAirport}`, time: formatDateTime(f.departure) });
-    if (to) addItem(to, '✈️', PRIORITY.flight, { title: `Chegada · ${name} de ${f.fromAirport}`, time: formatDateTime(f.arrival) });
+    if (from) addItem(from, CATEGORY_EMOJI.aeroporto, PRIORITY.flight, { title: `Partida · ${name} → ${f.toAirport}`, time: formatDateTime(f.departure) });
+    if (to) addItem(to, CATEGORY_EMOJI.aeroporto, PRIORITY.flight, { title: `Chegada · ${name} de ${f.fromAirport}`, time: formatDateTime(f.arrival) });
     if (from && to && keyOf(from) !== keyOf(to)) {
       legs.push({
         kind: 'air',

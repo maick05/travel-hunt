@@ -177,6 +177,11 @@ function transportKey(t: { code: string; details: string }) {
   return `${t.code}-${t.details}`;
 }
 
+function FlightStatusBadge({ status }: { status: string }) {
+  const colors = normText(status) === 'viaje facil' ? { bg: '#F7941D', fg: '#1B1B1B' } : undefined;
+  return <StatusBadge status={status} colors={colors} />;
+}
+
 function DayList({
   data,
   activities,
@@ -269,7 +274,7 @@ export function FlightsSection({ data }: { data: TripData }) {
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 4 }}>
                   {[...new Set(legs.map((l) => l.status))].map((s) => (
-                    <StatusBadge key={s} status={s} />
+                    <FlightStatusBadge key={s} status={s} />
                   ))}
                   <CostTag cost={cost} />
                 </View>
@@ -288,7 +293,7 @@ export function FlightsSection({ data }: { data: TripData }) {
                         {f.airline} {f.flightNumber}
                       </ThemedText>
                     </View>
-                    <StatusBadge status={f.status} />
+                    <FlightStatusBadge status={f.status} />
                   </View>
                   <Field label="Partida" value={`${formatDateTime(f.departure)} · ${f.from}`} />
                   <Field label="Chegada" value={`${formatDateTime(f.arrival)} · ${f.to}`} />
@@ -345,11 +350,51 @@ export function HotelsSection({ data }: { data: TripData }) {
   );
 }
 
+type TransportView = 'list' | 'destinations';
+const TRANSPORT_VIEWS: { key: TransportView; label: string; icon: IconName }[] = [
+  { key: 'list', label: 'Lista', icon: 'format-list-bulleted' },
+  { key: 'destinations', label: 'Por destino', icon: 'map-marker' },
+];
+
 export function TransportSection({ data, focusKey }: { data: TripData; focusKey?: string }) {
+  const [view, setView] = useState<TransportView>('list');
   if (!data.transports.length) return <Empty />;
+
+  const { cityOf, bannerOf } = createPlaces(data.locals);
+  const destinations = new Map<string, { city: string; transports: TripData['transports'] }>();
+  for (const transport of data.transports) {
+    const city = cityOf(transport.to).trim();
+    const key = cityCostKey(city);
+    const group = destinations.get(key) ?? { city, transports: [] };
+    group.transports.push(transport);
+    destinations.set(key, group);
+  }
+
   return (
     <View style={styles.list}>
-      {data.transports.map((t) => {
+      <Tabs tabs={TRANSPORT_VIEWS} value={view} onChange={setView} />
+      {view === 'list' ? (
+        <TransportCards data={data} transports={data.transports} focusKey={focusKey} />
+      ) : (
+        [...destinations.entries()].map(([key, group]) => (
+          <Accordion
+            key={key}
+            title={group.city || 'Sem local'}
+            banner={bannerOf(group.city)}
+            subtitle={`${group.transports.length} ${group.transports.length === 1 ? 'transporte' : 'transportes'}`}
+            defaultOpen={group.transports.some((transport) => transportKey(transport) === focusKey)}>
+            <TransportCards data={data} transports={group.transports} focusKey={focusKey} />
+          </Accordion>
+        ))
+      )}
+    </View>
+  );
+}
+
+function TransportCards({ data, transports, focusKey }: { data: TripData; transports: TripData['transports']; focusKey?: string }) {
+  return (
+    <View style={styles.list}>
+      {transports.map((t) => {
         const cost = costFor(data, 'transports', t.code);
         return (
           <ExpandCard
@@ -515,7 +560,14 @@ export function MoneySection({ data }: { data: TripData }) {
 
 function CityCosts({ data }: { data: TripData }) {
   const cities = [...costsByCity(data).entries()];
-  const { bannerOf } = createPlaces(data.locals);
+  const { bannerOf, cityOf } = createPlaces(data.locals);
+  const firstActivity = new Map<string, number>();
+  for (const activity of data.activities) {
+    if (activity.start === null) continue;
+    const key = cityCostKey(cityOf(activity.place));
+    firstActivity.set(key, Math.min(firstActivity.get(key) ?? Infinity, activity.start));
+  }
+  cities.sort(([left], [right]) => (firstActivity.get(left) ?? Infinity) - (firstActivity.get(right) ?? Infinity));
   if (!cities.length) return <Empty>Nenhuma despesa vinculada a um local.</Empty>;
   return (
     <View style={styles.list}>

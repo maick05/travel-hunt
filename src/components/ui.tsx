@@ -8,14 +8,14 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import type { Cost } from '@/features/travel/costs';
 import {
-    billToBRL,
-    feesNote,
-    formatAmount,
-    formatBRL,
-    mapsUrl,
-    rateNote,
-    statusTone,
-    type StatusTone,
+  billToBRL,
+  feesNote,
+  formatAmount,
+  formatBRL,
+  mapsUrl,
+  rateNote,
+  statusTone,
+  type StatusTone,
 } from '@/features/travel/format';
 import { bannerSource, isLink, placeLabel } from '@/features/travel/places';
 import type { Currency } from '@/features/travel/schema';
@@ -172,9 +172,9 @@ const toneColors: Record<StatusTone, { bg: string; fg: string }> = {
   neutral: { bg: '#E8EDF5', fg: '#4B5A70' },
 };
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({ status, colors }: { status: string; colors?: { bg: string; fg: string } }) {
   if (!status) return null;
-  const { bg, fg } = toneColors[statusTone(status)];
+  const { bg, fg } = colors ?? toneColors[statusTone(status)];
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
       <ThemedText type="smallBold" style={{ color: fg, fontSize: 12, lineHeight: 16 }}>
