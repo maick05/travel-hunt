@@ -21,10 +21,10 @@ export type MapLeg = {
 };
 
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-const PRIORITY = { other: 0, route: 1, sightseeing: 2, transport: 3, airport: 4, flight: 5 } as const;
+const PRIORITY = { other: 0, route: 1, sightseeing: 2, transport: 3, airport: 4, flight: 5, origin: 6 } as const;
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  aeroporto: '🛂',
+  aeroporto: '🛫',
   traslado: '📍',
   hotel: '🏨',
   passeio: '📸',
@@ -147,6 +147,21 @@ export function buildMap(data: TripData) {
         departureEstimated: false,
       });
     }
+  }
+
+  let origin: { coord: Coord; time: number | null } | null = null;
+  const considerOrigin = (place: string, time: number | null) => {
+    const coord = resolve(place)?.coord;
+    if (coord && (!origin || (time !== null && (origin.time === null || time < origin.time)))) {
+      origin = { coord, time };
+    }
+  };
+  for (const flight of data.flights) considerOrigin(flight.from, flight.departure);
+  for (const transport of data.transports) considerOrigin(transport.from, transport.departure);
+  for (const activity of data.activities) considerOrigin(activity.place, activity.start);
+  if (origin) {
+    const start = origin as { coord: Coord; time: number | null };
+    addItem(start.coord, '🚩', PRIORITY.origin, { title: 'Início da viagem', time: formatDateTime(start.time) });
   }
 
   return { points: [...points.values()], legs, missing };

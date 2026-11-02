@@ -402,8 +402,14 @@ function TransportCards({ data, transports, focusKey }: { data: TripData; transp
             defaultOpen={focusKey === transportKey(t)}
             header={
               <View style={styles.row}>
-                <IconBubble name={modeIcon(t.mode)} />
-                <BrandBadge name={t.platform} size={32} />
+                <TransportIconTip tip={`Meio de transporte: ${t.mode || 'Não informado'}`}>
+                  <IconBubble name={modeIcon(t.mode)} />
+                </TransportIconTip>
+                {t.platform ? (
+                  <TransportIconTip tip={`Plataforma: ${t.platform}`}>
+                    <BrandBadge name={t.platform} size={32} />
+                  </TransportIconTip>
+                ) : null}
                 <View style={styles.flex}>
                   <ThemedText type="smallBold">{t.details || t.mode}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
@@ -423,6 +429,31 @@ function TransportCards({ data, transports, focusKey }: { data: TripData; transp
         );
       })}
     </View>
+  );
+}
+
+function TransportIconTip({ tip, children }: { tip: string; children: React.ReactNode }) {
+  const [show, setShow] = useState(false);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={tip}
+      onHoverIn={() => setShow(true)}
+      onHoverOut={() => setShow(false)}
+      onFocus={() => setShow(true)}
+      onBlur={() => setShow(false)}
+      onPress={(event) => {
+        event.stopPropagation();
+        setShow((visible) => !visible);
+      }}
+      style={[styles.iconTip, show && styles.transportIconActive]}>
+      {children}
+      {show && (
+        <View style={styles.transportTooltip} pointerEvents="none">
+          <ThemedText type="small" style={styles.tooltipText}>{tip}</ThemedText>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -614,6 +645,18 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
   meta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   iconTip: { position: 'relative', justifyContent: 'center' },
+  transportIconActive: { zIndex: 10 },
+  transportTooltip: {
+    position: 'absolute',
+    bottom: '100%',
+    left: 0,
+    width: 200,
+    marginBottom: Spacing.one,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.two,
+    backgroundColor: Colors.light.text,
+  },
   // Faixa de 360px centrada no ícone de 20px; o balão dentro dela ocupa só o tamanho do texto.
   tooltipWrap: {
     position: 'absolute',
