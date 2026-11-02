@@ -76,6 +76,7 @@ export const schemas = {
       status: text('Status'),
       passengers: text('Passageiros'),
       voucher: text('Reserva'),
+      stage: text('Etapa Percurso'),
       trip: text('Viagem'),
     },
   },

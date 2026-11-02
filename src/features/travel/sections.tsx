@@ -298,6 +298,7 @@ export function FlightsSection({ data }: { data: TripData }) {
                   </View>
                   <Field label="Partida" value={`${formatDateTime(f.departure)} · ${f.from}`} />
                   <Field label="Chegada" value={`${formatDateTime(f.arrival)} · ${f.to}`} />
+                  <Field label="Etapa do percurso" value={f.stage} />
                   <FileLink url={f.voucher} />
                 </View>
               ))}

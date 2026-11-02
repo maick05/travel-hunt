@@ -21,7 +21,10 @@ export type MapLeg = {
 };
 
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-const PRIORITY = { other: 0, route: 1, sightseeing: 2, transport: 3, airport: 4, flight: 5, origin: 6, finalAirport: 7 } as const;
+const PRIORITY = {
+  other: 0, route: 1, sightseeing: 2, transport: 3, airport: 4, flight: 5, origin: 6,
+  returnFlight: 7, returnArrival: 8, outboundFlight: 9, outboundArrival: 10,
+} as const;
 
 const CATEGORY_EMOJI: Record<string, string> = {
   aeroporto: '🛫',
@@ -61,7 +64,6 @@ export function buildMap(data: TripData) {
   };
 
   let prev: { coord: Coord; city: string; end: number | null } | null = null;
-  const lastActivity = data.activities[data.activities.length - 1];
   for (const a of data.activities) {
     const c = resolve(a.place)?.coord;
     if (!c) {
@@ -72,15 +74,12 @@ export function buildMap(data: TripData) {
     const category = norm(a.category);
     const ownTransport = a.transportRef && data.transports.some((transport) =>
       norm(transport.details) === norm(a.transportRef) && norm(transport.platform) === 'conducao propria');
-    const finalAirport = a === lastActivity && category === 'aeroporto';
-    const emoji = finalAirport ? '🛬'
-      : ownTransport && (category === 'transporte' || category === 'traslado')
+    const emoji = ownTransport && (category === 'transporte' || category === 'traslado')
       ? '🚙'
       : category === 'transporte' && a.transportMode
       ? legStyle(a.transportMode).emoji
       : CATEGORY_EMOJI[category] ?? '📍';
-    const priority = finalAirport ? PRIORITY.finalAirport
-      : category === 'aeroporto' ? PRIORITY.airport
+    const priority = category === 'aeroporto' ? PRIORITY.airport
       : category === 'transporte' || category === 'traslado' ? PRIORITY.transport
       : category === 'passeio' ? PRIORITY.sightseeing
       : PRIORITY.other;
@@ -129,12 +128,28 @@ export function buildMap(data: TripData) {
     }
   }
 
+  const lastFlight = new Map<string, TripData['flights'][number]>();
+  for (const flight of data.flights) {
+    const stage = norm(flight.stage);
+    if (stage !== 'ida' && stage !== 'volta') continue;
+    const previous = lastFlight.get(stage);
+    const time = flight.departure ?? flight.arrival;
+    const previousTime = previous ? previous.departure ?? previous.arrival : null;
+    if (!previous || (time !== null && (previousTime === null || time >= previousTime)) || (time === null && previousTime === null)) {
+      lastFlight.set(stage, flight);
+    }
+  }
+
   for (const f of data.flights) {
     const from = resolve(f.from)?.coord;
     const to = resolve(f.to)?.coord;
     const name = `${f.airline} ${f.flightNumber}`.trim();
-    if (from) addItem(from, CATEGORY_EMOJI.aeroporto, PRIORITY.flight, { title: `Partida · ${name} → ${f.toAirport}`, time: formatDateTime(f.departure) });
-    if (to) addItem(to, CATEGORY_EMOJI.aeroporto, PRIORITY.flight, { title: `Chegada · ${name} de ${f.fromAirport}`, time: formatDateTime(f.arrival) });
+    const stage = norm(f.stage);
+    const priority = stage === 'ida' ? PRIORITY.outboundFlight : stage === 'volta' ? PRIORITY.returnFlight : PRIORITY.flight;
+    const finalFlight = lastFlight.get(stage) === f;
+    const arrivalPriority = finalFlight ? (stage === 'ida' ? PRIORITY.outboundArrival : PRIORITY.returnArrival) : priority;
+    if (from) addItem(from, CATEGORY_EMOJI.aeroporto, priority, { title: `Partida · ${name} → ${f.toAirport}`, time: formatDateTime(f.departure) });
+    if (to) addItem(to, finalFlight ? '🛬' : CATEGORY_EMOJI.aeroporto, arrivalPriority, { title: `Chegada · ${name} de ${f.fromAirport}`, time: formatDateTime(f.arrival) });
     if (from && to && keyOf(from) !== keyOf(to)) {
       legs.push({
         kind: 'air',
