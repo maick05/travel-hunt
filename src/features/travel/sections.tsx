@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { BrandBadge, categoryIcon, mealIcon, modeIcon, type IconName } from '@/components/brand';
 import { PieChart, type ChartItem } from '@/components/charts';
@@ -550,9 +550,18 @@ const MONEY_VIEWS: { key: MoneyView; label: string; icon: IconName }[] = [
 
 export function MoneySection({ data }: { data: TripData }) {
   const [view, setView] = useState<MoneyView>('charts');
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   if (!data.bills.length) return <Empty />;
 
   const converted = data.bills.map((b) => ({ bill: b, brl: billToBRL(b, data.currencies) }));
+  const types = [...new Set(data.bills.map((bill) => bill.type))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const categories = [...new Set(data.bills
+    .filter((bill) => selectedType === null || bill.type === selectedType)
+    .map((bill) => bill.category))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const filtered = converted.filter(({ bill }) =>
+    (selectedType === null || bill.type === selectedType) &&
+    (selectedCategory === null || bill.category === selectedCategory));
 
   const sum = (pred: (tone: ReturnType<typeof statusTone>) => boolean) =>
     converted.filter((c) => pred(statusTone(c.bill.status))).reduce((acc, c) => acc + (c.brl ?? 0), 0);
@@ -581,18 +590,83 @@ export function MoneySection({ data }: { data: TripData }) {
       </Card>
 
       <Tabs tabs={MONEY_VIEWS} value={view} onChange={setView} secondary />
+      {view !== 'charts' && (
+        <View style={styles.filterRow}>
+          <FilterSelect
+            label="Tipo"
+            value={selectedType}
+            options={types}
+            emptyLabel="Sem tipo"
+            onChange={(value) => { setSelectedType(value); setSelectedCategory(null); }}
+          />
+          <FilterSelect
+            label="Categoria"
+            value={selectedCategory}
+            options={categories}
+            emptyLabel="Sem categoria"
+            onChange={setSelectedCategory}
+          />
+        </View>
+      )}
       {view === 'charts' ? (
         <>
-          <PieChart title="Despesas por categoria" items={byCategory} format={formatBRL} />
+          <PieChart title="Despesas por tipo" items={byCategory} format={formatBRL} />
           <PieChart title="Despesas por status" items={byStatus} format={formatBRL} />
         </>
       ) : view === 'bills' ? (
-        converted.map(({ bill, brl }, index) => (
+        filtered.length ? filtered.map(({ bill, brl }, index) => (
           <BillCard key={`${bill.reference}-${bill.description}-${index}`} bill={bill} brl={brl} currencies={data.currencies} />
-        ))
+        )) : <Empty>Nenhuma despesa encontrada.</Empty>
       ) : (
-        <CityCosts data={data} />
+        <CityCosts data={{ ...data, bills: filtered.map(({ bill }) => bill) }} />
       )}
+    </View>
+  );
+}
+
+function FilterSelect({ label, value, options, emptyLabel, onChange }: {
+  label: string;
+  value: string | null;
+  options: string[];
+  emptyLabel: string;
+  onChange: (value: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const choices: (string | null)[] = [null, ...options];
+  const optionLabel = (option: string | null) => option === null ? 'Todas' : option || emptyLabel;
+  return (
+    <View style={styles.filterField}>
+      <ThemedText type="small" themeColor="textSecondary">{label}</ThemedText>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${optionLabel(value)}`} onPress={() => setOpen(true)} style={styles.filterSelect}>
+        <ThemedText type="small" numberOfLines={1} style={styles.filterValue}>{optionLabel(value)}</ThemedText>
+        <MaterialCommunityIcons name="chevron-down" size={20} color={Colors.light.textSecondary} />
+      </Pressable>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <View style={styles.filterBackdrop}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Fechar filtro" onPress={() => setOpen(false)} style={StyleSheet.absoluteFill} />
+          <View style={styles.filterMenu}>
+            <View style={styles.filterMenuHeader}>
+              <ThemedText type="smallBold">{label}</ThemedText>
+              <Pressable accessibilityRole="button" accessibilityLabel="Fechar" onPress={() => setOpen(false)} hitSlop={8}>
+                <MaterialCommunityIcons name="close" size={22} color={Colors.light.textSecondary} />
+              </Pressable>
+            </View>
+            <ScrollView style={styles.filterOptions}>
+              {choices.map((option) => (
+                <Pressable
+                  key={option === null ? '__all__' : `value-${option}`}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: value === option }}
+                  onPress={() => { onChange(option); setOpen(false); }}
+                  style={styles.filterOption}>
+                  <ThemedText type="small" style={styles.filterValue}>{optionLabel(option)}</ThemedText>
+                  {value === option && <MaterialCommunityIcons name="check" size={20} color={Colors.light.accent} />}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -630,7 +704,7 @@ function BillCard({ bill, brl, currencies, share = 1 }: { bill: Bill; brl: numbe
         <View style={styles.flex}>
           <ThemedText type="smallBold">{bill.description}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {[bill.type, bill.person, bill.paymentMethod].filter(Boolean).join(' · ')}
+            {[bill.type, bill.category, bill.person, bill.paymentMethod].filter(Boolean).join(' · ')}
           </ThemedText>
           <ThemedText type="small">
             {formatAmount(bill.amount, currency, bill.currency)}
@@ -648,6 +722,15 @@ function BillCard({ bill, brl, currencies, share = 1 }: { bill: Bill; brl: numbe
 
 const styles = StyleSheet.create({
   list: { gap: Spacing.two },
+  filterRow: { flexDirection: 'row', gap: Spacing.two },
+  filterField: { flex: 1, minWidth: 0, gap: Spacing.one },
+  filterSelect: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, borderRadius: Spacing.two, borderWidth: 1, borderColor: Colors.light.border, backgroundColor: Colors.light.backgroundElement },
+  filterValue: { flex: 1 },
+  filterBackdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.three, backgroundColor: 'rgba(0, 0, 0, 0.45)' },
+  filterMenu: { width: '100%', maxWidth: 420, maxHeight: '75%', borderRadius: Spacing.two, backgroundColor: Colors.light.backgroundElement },
+  filterMenuHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.three },
+  filterOptions: { flexGrow: 0 },
+  filterOption: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   flex: { flex: 1, gap: Spacing.half },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },

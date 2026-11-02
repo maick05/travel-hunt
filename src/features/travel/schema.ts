@@ -48,6 +48,7 @@ export const schemas = {
     fields: {
       type: text('Tipo'),
       reference: text('Referência'),
+      category: text('Categoria'),
       bookingDate: date('Data Reserva'),
       paymentDate: date('Data Pagamento'),
       description: text('Descrição do item'),
