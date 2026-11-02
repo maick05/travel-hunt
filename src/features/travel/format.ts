@@ -78,7 +78,7 @@ export function foreignFees(bill: Bill, currencies: Currency[]): { spread: numbe
   if (!currency || currency.symbol === 'R$') return null;
   if (!/fiduci/i.test(currency.type.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) return null;
   const card = /cr[eé]dito/i.test(bill.paymentMethod);
-  return { spread: card ? SPREAD_CARTAO : 0, iof: IOF_EXTERIOR };
+  return { spread: card ? SPREAD_CARTAO : 0, iof: card ? 0 : IOF_EXTERIOR };
 }
 
 /** Texto dos encargos aplicados; vazio quando não há. */
@@ -87,7 +87,8 @@ export function feesNote(bill: Bill, currencies: Currency[]): string {
   const fees = foreignFees(bill, currencies);
   if (!fees) return '';
   const pct = (n: number) => `${formatNumber(n * 100)}%`;
-  return fees.spread ? `Spread ${pct(fees.spread)} + IOF ${pct(fees.iof)}` : `IOF ${pct(fees.iof)}`;
+  return [fees.spread ? `Spread ${pct(fees.spread)}` : '', fees.iof ? `IOF ${pct(fees.iof)}` : '']
+    .filter(Boolean).join(' + ');
 }
 
 export function formatRate(n: number): string {
