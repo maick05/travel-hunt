@@ -3,7 +3,7 @@ import { createPlaces, type Coord } from './places';
 import type { TripData } from './use-travel-data';
 
 export type MapItem = { title: string; time: string };
-export type MapPoint = { lat: number; lng: number; emoji: string; items: MapItem[] };
+export type MapPoint = { lat: number; lng: number; emoji: string; priority: number; items: MapItem[] };
 export type LegKind = 'air' | 'road' | 'foot';
 export type MapLeg = {
   kind: LegKind;
@@ -14,9 +14,11 @@ export type MapLeg = {
   destination: string;
   duration: string;
   estimateDuration: boolean;
+  priority: number;
 };
 
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const PRIORITY = { other: 0, route: 1, sightseeing: 2, transport: 3, airport: 4, flight: 5 } as const;
 
 const CATEGORY_EMOJI: Record<string, string> = {
   aeroporto: '✈️',
@@ -43,9 +45,13 @@ export function buildMap(data: TripData) {
   const legs: MapLeg[] = [];
   const missing: string[] = [];
 
-  const addItem = (c: Coord, emoji: string, item: MapItem) => {
+  const addItem = (c: Coord, emoji: string, priority: number, item: MapItem) => {
     const k = keyOf(c);
-    const p = points.get(k) ?? { lat: c.lat, lng: c.lng, emoji, items: [] };
+    const p = points.get(k) ?? { lat: c.lat, lng: c.lng, emoji, priority, items: [] };
+    if (priority > p.priority) {
+      p.emoji = emoji;
+      p.priority = priority;
+    }
     p.items.push(item);
     points.set(k, p);
   };
@@ -62,7 +68,11 @@ export function buildMap(data: TripData) {
     const emoji = category === 'transporte' && a.transportMode
       ? legStyle(a.transportMode).emoji
       : CATEGORY_EMOJI[category] ?? '📍';
-    addItem(c, emoji, { title: a.title, time: formatDateTime(a.start) });
+    const priority = category === 'aeroporto' ? PRIORITY.airport
+      : category === 'transporte' ? PRIORITY.transport
+      : category === 'passeio' ? PRIORITY.sightseeing
+      : PRIORITY.other;
+    addItem(c, emoji, priority, { title: a.title, time: formatDateTime(a.start) });
 
     const city = cityOf(a.place);
     const style = legStyle(a.transportMode);
@@ -76,6 +86,7 @@ export function buildMap(data: TripData) {
         destination: a.title || resolve(a.place)?.name || a.place,
         duration: '',
         estimateDuration: style.kind === 'foot' || ['automovel', 'carro', 'taxi', 'uber'].includes(norm(a.transportMode)),
+        priority: PRIORITY.route,
       });
     }
     prev = { coord: c, city };
@@ -85,14 +96,16 @@ export function buildMap(data: TripData) {
     const from = resolve(transport.from)?.coord;
     const to = resolve(transport.to)?.coord;
     if (from && to && keyOf(from) !== keyOf(to)) {
+      const style = legStyle(transport.mode);
       legs.push({
-        ...legStyle(transport.mode),
+        ...style,
         from: [from.lat, from.lng],
         to: [to.lat, to.lng],
         label: [transport.mode, transport.details].filter(Boolean).join(' · '),
         destination: resolve(transport.to)?.name || transport.to,
         duration: formatDuration(transport.departure, transport.arrival),
         estimateDuration: ['a pe', 'automovel', 'carro', 'taxi', 'uber'].includes(norm(transport.mode)),
+        priority: style.kind === 'air' ? PRIORITY.flight : PRIORITY.route,
       });
     }
   }
@@ -101,8 +114,8 @@ export function buildMap(data: TripData) {
     const from = resolve(f.from)?.coord;
     const to = resolve(f.to)?.coord;
     const name = `${f.airline} ${f.flightNumber}`.trim();
-    if (from) addItem(from, '✈️', { title: `Partida · ${name} → ${f.toAirport}`, time: formatDateTime(f.departure) });
-    if (to) addItem(to, '✈️', { title: `Chegada · ${name} de ${f.fromAirport}`, time: formatDateTime(f.arrival) });
+    if (from) addItem(from, '✈️', PRIORITY.flight, { title: `Partida · ${name} → ${f.toAirport}`, time: formatDateTime(f.departure) });
+    if (to) addItem(to, '✈️', PRIORITY.flight, { title: `Chegada · ${name} de ${f.fromAirport}`, time: formatDateTime(f.arrival) });
     if (from && to && keyOf(from) !== keyOf(to)) {
       legs.push({
         kind: 'air',
@@ -113,6 +126,7 @@ export function buildMap(data: TripData) {
         destination: [f.toAirport, f.to].filter(Boolean).join(' · '),
         duration: formatDuration(f.departure, f.arrival),
         estimateDuration: false,
+        priority: PRIORITY.flight,
       });
     }
   }

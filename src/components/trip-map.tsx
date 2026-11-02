@@ -60,8 +60,9 @@ export default function TripMap({
         maxZoom: 19,
       }).addTo(m);
 
-      const pin = (latlng: LatLng, emoji: string, popup: string, small = false) =>
+      const pin = (latlng: LatLng, emoji: string, popup: string, priority: number, small = false) =>
         L.marker(latlng, {
+          zIndexOffset: priority * 10000,
           icon: L.divIcon({
             className: '',
             html: `<div class="tm-pin${small ? ' tm-small' : ''}">${emoji}</div>`,
@@ -76,7 +77,7 @@ export default function TripMap({
 
       for (const p of data.points) {
         const list = p.items.map((i) => `<div><b>${esc(i.time)}</b> ${esc(i.title)}</div>`).join('');
-        pin([p.lat, p.lng], p.emoji, list);
+        pin([p.lat, p.lng], p.emoji, list, p.priority);
         bounds.push([p.lat, p.lng]);
       }
 
@@ -114,7 +115,7 @@ export default function TripMap({
           ? `Intervalo dos horários: ${leg.duration}${leg.kind === 'air' ? ' (sem ajuste de fuso)' : ''}`
           : leg.estimateDuration && estimatedTime ? `Tempo estimado: ${estimatedTime}` : 'Tempo indisponível';
         const details = [leg.label, `Destino: ${leg.destination}`, `${isRouted ? 'Distância' : 'Distância em linha reta'}: ${km} km`, time];
-        pin(mid, leg.emoji, details.map((detail) => `<div>${esc(detail)}</div>`).join(''), true);
+        pin(mid, leg.emoji, details.map((detail) => `<div>${esc(detail)}</div>`).join(''), leg.priority, true);
         bounds.push(...path);
       };
 
