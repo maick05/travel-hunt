@@ -451,8 +451,10 @@ function TransportIconTip({ tip, children }: { tip: string; children: React.Reac
       style={[styles.iconTip, show && styles.transportIconActive]}>
       {children}
       {show && (
-        <View style={styles.transportTooltip} pointerEvents="none">
-          <ThemedText type="small" style={styles.tooltipText}>{tip}</ThemedText>
+        <View style={styles.transportTooltipWrap} pointerEvents="none">
+          <View style={styles.transportTooltip}>
+            <ThemedText type="small" style={[styles.tooltipText, styles.transportTooltipText]}>{tip}</ThemedText>
+          </View>
         </View>
       )}
     </Pressable>
@@ -649,17 +651,22 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   iconTip: { position: 'relative', justifyContent: 'center' },
   transportIconActive: { zIndex: 10 },
-  transportTooltip: {
+  transportTooltipWrap: {
     position: 'absolute',
     bottom: '100%',
     left: 0,
     width: 200,
+    alignItems: 'flex-start',
     marginBottom: Spacing.one,
+  },
+  transportTooltip: {
+    maxWidth: 200,
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.one,
     borderRadius: Spacing.two,
     backgroundColor: Colors.light.text,
   },
+  transportTooltipText: { textAlign: 'center' },
   // Faixa de 360px centrada no ícone de 20px; o balão dentro dela ocupa só o tamanho do texto.
   tooltipWrap: {
     position: 'absolute',

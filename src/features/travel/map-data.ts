@@ -21,7 +21,7 @@ export type MapLeg = {
 };
 
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-const PRIORITY = { other: 0, route: 1, sightseeing: 2, transport: 3, airport: 4, flight: 5, origin: 6 } as const;
+const PRIORITY = { other: 0, route: 1, sightseeing: 2, transport: 3, airport: 4, flight: 5, origin: 6, finalAirport: 7 } as const;
 
 const CATEGORY_EMOJI: Record<string, string> = {
   aeroporto: '🛫',
@@ -61,6 +61,7 @@ export function buildMap(data: TripData) {
   };
 
   let prev: { coord: Coord; city: string; end: number | null } | null = null;
+  const lastActivity = data.activities[data.activities.length - 1];
   for (const a of data.activities) {
     const c = resolve(a.place)?.coord;
     if (!c) {
@@ -71,12 +72,15 @@ export function buildMap(data: TripData) {
     const category = norm(a.category);
     const ownTransport = a.transportRef && data.transports.some((transport) =>
       norm(transport.details) === norm(a.transportRef) && norm(transport.platform) === 'conducao propria');
-    const emoji = ownTransport && (category === 'transporte' || category === 'traslado')
+    const finalAirport = a === lastActivity && category === 'aeroporto';
+    const emoji = finalAirport ? '🛬'
+      : ownTransport && (category === 'transporte' || category === 'traslado')
       ? '🚙'
       : category === 'transporte' && a.transportMode
       ? legStyle(a.transportMode).emoji
       : CATEGORY_EMOJI[category] ?? '📍';
-    const priority = category === 'aeroporto' ? PRIORITY.airport
+    const priority = finalAirport ? PRIORITY.finalAirport
+      : category === 'aeroporto' ? PRIORITY.airport
       : category === 'transporte' || category === 'traslado' ? PRIORITY.transport
       : category === 'passeio' ? PRIORITY.sightseeing
       : PRIORITY.other;

@@ -105,13 +105,11 @@ export function BannerCard({
       <ImageBackground source={source ?? {}} resizeMode="cover" style={styles.bannerImage}>
         <View style={[styles.bannerOverlay, !!leading && styles.bannerOverlayLeading]}>
           {leading ? <View style={styles.bannerLeading}>{leading}</View> : null}
-          <View style={styles.flex}>
-            <View style={styles.titleWithFlag}>
-              <ThemedText type={compact ? 'subtitle' : 'title'} style={[styles.bannerText, styles.titleText]}>
-                {title}
-              </ThemedText>
-              <CountryFlag country={country} />
-            </View>
+          {country ? <View style={styles.bannerFlag}><CountryFlag country={country} /></View> : null}
+          <View style={[styles.flex, !!country && styles.bannerContentWithFlag]}>
+            <ThemedText type={compact ? 'subtitle' : 'title'} style={styles.bannerText}>
+              {title}
+            </ThemedText>
             {subtitle ? (
               <ThemedText type="small" style={styles.bannerText}>
                 {subtitle}
@@ -174,18 +172,16 @@ export function Accordion({
         style={({ pressed }) => [styles.accordionHeader, sub && styles.accordionHeaderSub, pressed && styles.pressed]}>
         <IconBubble name={icon} size={sub ? 32 : 40} />
         <View style={styles.flex}>
-          <View style={styles.titleWithFlag}>
-            <ThemedText type={sub ? 'smallBold' : 'subtitle'} style={[!sub && styles.accordionTitle, styles.titleText]}>
-              {title}
-            </ThemedText>
-            <CountryFlag country={country} />
-          </View>
+          <ThemedText type={sub ? 'smallBold' : 'subtitle'} style={sub ? undefined : styles.accordionTitle}>
+            {title}
+          </ThemedText>
           {subtitle ? (
             <ThemedText type="small" themeColor="textSecondary">
               {subtitle}
             </ThemedText>
           ) : null}
         </View>
+        <CountryFlag country={country} />
         <MaterialCommunityIcons name={chevron} size={24} color={c.textSecondary} />
       </Pressable>
       {open && <View style={[styles.accordionBody, sub && styles.accordionBodySub]}>{children}</View>}
@@ -348,8 +344,6 @@ export function Tabs<T extends string>({
 }
 
 const styles = StyleSheet.create({
-  titleWithFlag: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  titleText: { flexShrink: 1 },
   flex: { flex: 1, gap: Spacing.one },
   card: {
     padding: Spacing.three,
@@ -382,9 +376,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: Spacing.two,
     padding: Spacing.three,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    backgroundColor: 'rgba(0, 0, 0, 0.62)',
   },
-  bannerText: { color: '#FFFFFF' },
+  bannerText: { color: '#FFFFFF', textShadowColor: 'rgba(0, 0, 0, 0.75)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  bannerFlag: { position: 'absolute', top: Spacing.three, right: Spacing.three },
+  bannerContentWithFlag: { paddingRight: 28 },
   bannerOverlayLeading: { paddingTop: 68 },
   bannerLeading: { position: 'absolute', top: Spacing.two, left: Spacing.two },
   accordionBody: { gap: Spacing.two },
