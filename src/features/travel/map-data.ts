@@ -25,6 +25,7 @@ const PRIORITY = { other: 0, route: 1, sightseeing: 2, transport: 3, airport: 4,
 
 const CATEGORY_EMOJI: Record<string, string> = {
   aeroporto: '✈️',
+  traslado: '📍',
   hotel: '🏨',
   passeio: '📸',
   gastronomia: '🍽️',
@@ -72,7 +73,7 @@ export function buildMap(data: TripData) {
       ? legStyle(a.transportMode).emoji
       : CATEGORY_EMOJI[category] ?? '📍';
     const priority = category === 'aeroporto' ? PRIORITY.airport
-      : category === 'transporte' ? PRIORITY.transport
+      : category === 'transporte' || category === 'traslado' ? PRIORITY.transport
       : category === 'passeio' ? PRIORITY.sightseeing
       : PRIORITY.other;
     addItem(c, emoji, priority, { title: a.title, time: formatDateTime(a.start) });

@@ -22,6 +22,7 @@ const BRANDS: Record<string, Brand> = {
   airbnb: { color: '#FF5A5F' },
   decolar: { color: '#7C3AED' },
   expedia: { color: '#FFC72C', fg: '#1B2A41' },
+  flixbus: { color: '#73D700', logo: require('@/assets/brands/flixbus.png') },
   uber: { color: '#1B1B1B', logo: require('@/assets/brands/uber.png') },
   '99': { color: '#FFD400', fg: '#1B2A41' },
   cabify: { color: '#7B3FF2' },
@@ -76,6 +77,7 @@ export function mealIcon(type: string): IconName {
 export function categoryIcon(category: string): IconName {
   const c = norm(category);
   if (c.includes('aeroporto')) return 'airplane-takeoff';
+  if (c.includes('traslado')) return 'map-marker';
   if (c.includes('hotel')) return 'bed';
   if (c.includes('passeio')) return 'camera';
   if (c.includes('gastronomia')) return 'silverware-fork-knife';
