@@ -1,6 +1,7 @@
 // Resolve links do Google Maps (inclusive maps.app.goo.gl) para nome + coordenadas e grava em
 // src/features/travel/places.generated.json. Lê todos os links da planilha pela API do Sheets.
 // Uso: npm run places   (usa EXPO_PUBLIC_SHEETS_ID e EXPO_PUBLIC_SHEETS_API_KEY do ambiente ou do .env)
+import { Buffer } from 'node:buffer';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 

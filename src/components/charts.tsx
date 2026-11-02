@@ -28,8 +28,14 @@ export function PieChart({
   const total = data.reduce((s, i) => s + i.value, 0);
   const active = data.find((i) => i.label === selected);
   const toggle = (label: string) => setSelected((s) => (s === label ? null : label));
-
-  let offset = 0;
+  const segments = data.reduce<{ length: number; offset: number }[]>((result, item) => {
+    const previous = result[result.length - 1];
+    result.push({
+      length: (item.value / total) * CIRCUMFERENCE,
+      offset: previous ? previous.offset + previous.length : 0,
+    });
+    return result;
+  }, []);
 
   return (
     <Card>
@@ -43,10 +49,10 @@ export function PieChart({
           <View style={styles.chart}>
             <Svg width={SIZE} height={SIZE}>
               <G rotation={-90} origin={`${SIZE / 2}, ${SIZE / 2}`}>
-                {data.map((i) => {
-                  const length = (i.value / total) * CIRCUMFERENCE;
+                {data.map((i, index) => {
+                  const { length, offset } = segments[index];
                   const dimmed = active && active.label !== i.label;
-                  const circle = (
+                  return (
                     <Circle
                       key={i.label}
                       cx={SIZE / 2}
@@ -61,8 +67,6 @@ export function PieChart({
                       onPress={() => toggle(i.label)}
                     />
                   );
-                  offset += length;
-                  return circle;
                 })}
               </G>
             </Svg>
