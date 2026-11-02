@@ -1,6 +1,10 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import * as flags from 'country-flag-icons/string/3x2';
+import { Image } from 'expo-image';
+import countryNames from 'i18n-iso-countries/langs/pt.json';
 import { useState } from 'react';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, View, type ImageSourcePropType } from 'react-native';
+import { ImageBackground, Platform, Pressable, ScrollView, StyleSheet, View, type ImageSourcePropType } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 
 import type { IconName } from '@/components/brand';
 import { ExternalLink } from '@/components/external-link';
@@ -21,6 +25,28 @@ import { bannerSource, isLink, placeLabel } from '@/features/travel/places';
 import type { Currency } from '@/features/travel/schema';
 
 const c = Colors.light;
+
+const normalizeCountry = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const countryCodes = new Map(
+  Object.entries(countryNames.countries).flatMap(([code, names]) =>
+    (Array.isArray(names) ? names : [names]).map((name) => [normalizeCountry(name), code] as const),
+  ),
+);
+
+function CountryFlag({ country }: { country?: string }) {
+  if (!country) return null;
+  const code = countryCodes.get(normalizeCountry(country)) ?? country.trim().toUpperCase();
+  const svg = (flags as Record<string, string>)[code];
+  if (!svg) return null;
+  if (Platform.OS === 'web') {
+    return <Image source={{ uri: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` }} style={{ width: 24, height: 16 }} accessibilityLabel={`Bandeira: ${country}`} />;
+  }
+  return (
+    <View accessible accessibilityLabel={`Bandeira: ${country}`}>
+      <SvgXml xml={svg} width={24} height={16} />
+    </View>
+  );
+}
 
 export function Card({ children, onPress }: { children: React.ReactNode; onPress?: () => void }) {
   return (
@@ -62,6 +88,7 @@ export function BannerCard({
   subtitle,
   trailing,
   leading,
+  country,
   compact = false,
 }: {
   source: ImageSourcePropType | undefined;
@@ -69,6 +96,7 @@ export function BannerCard({
   subtitle?: string;
   trailing?: React.ReactNode;
   leading?: React.ReactNode;
+  country?: string;
   /** Versão menor, para subdivisões (ex.: cidade dentro da viagem). */
   compact?: boolean;
 }) {
@@ -78,9 +106,12 @@ export function BannerCard({
         <View style={[styles.bannerOverlay, !!leading && styles.bannerOverlayLeading]}>
           {leading ? <View style={styles.bannerLeading}>{leading}</View> : null}
           <View style={styles.flex}>
-            <ThemedText type={compact ? 'subtitle' : 'title'} style={styles.bannerText}>
-              {title}
-            </ThemedText>
+            <View style={styles.titleWithFlag}>
+              <ThemedText type={compact ? 'subtitle' : 'title'} style={[styles.bannerText, styles.titleText]}>
+                {title}
+              </ThemedText>
+              <CountryFlag country={country} />
+            </View>
             {subtitle ? (
               <ThemedText type="small" style={styles.bannerText}>
                 {subtitle}
@@ -101,6 +132,7 @@ export function Accordion({
   defaultOpen = false,
   sub = false,
   banner,
+  country,
   children,
 }: {
   title: string;
@@ -111,6 +143,7 @@ export function Accordion({
   sub?: boolean;
   /** URL de imagem: o cabeçalho vira um banner com o título sobre a foto. */
   banner?: string;
+  country?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -125,6 +158,7 @@ export function Accordion({
             source={bannerSource(banner)}
             title={title}
             subtitle={subtitle}
+            country={country}
             trailing={<MaterialCommunityIcons name={chevron} size={24} color="#FFFFFF" />}
           />
         </Pressable>
@@ -140,9 +174,12 @@ export function Accordion({
         style={({ pressed }) => [styles.accordionHeader, sub && styles.accordionHeaderSub, pressed && styles.pressed]}>
         <IconBubble name={icon} size={sub ? 32 : 40} />
         <View style={styles.flex}>
-          <ThemedText type={sub ? 'smallBold' : 'subtitle'} style={sub ? undefined : styles.accordionTitle}>
-            {title}
-          </ThemedText>
+          <View style={styles.titleWithFlag}>
+            <ThemedText type={sub ? 'smallBold' : 'subtitle'} style={[!sub && styles.accordionTitle, styles.titleText]}>
+              {title}
+            </ThemedText>
+            <CountryFlag country={country} />
+          </View>
           {subtitle ? (
             <ThemedText type="small" themeColor="textSecondary">
               {subtitle}
@@ -311,6 +348,8 @@ export function Tabs<T extends string>({
 }
 
 const styles = StyleSheet.create({
+  titleWithFlag: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  titleText: { flexShrink: 1 },
   flex: { flex: 1, gap: Spacing.one },
   card: {
     padding: Spacing.three,

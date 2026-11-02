@@ -71,6 +71,7 @@ export function createPlaces(locals: Tables['locals']) {
   });
   const byName = new Map(anchors.map((a) => [norm(a.city), a]));
   const banners = new Map(locals.filter((l) => l.banner).map((l) => [norm(l.name), l.banner]));
+  const countries = new Map(locals.filter((l) => l.country).map((l) => [norm(l.name), l.country]));
 
   /** Aceita link do Maps ou nome de cidade da aba Locals. */
   function resolve(ref: string): Place | undefined {
@@ -97,5 +98,9 @@ export function createPlaces(locals: Tables['locals']) {
     return banners.get(norm(city));
   }
 
-  return { resolve, cityOf, bannerOf };
+  function countryOf(city: string): string | undefined {
+    return countries.get(norm(city));
+  }
+
+  return { resolve, cityOf, bannerOf, countryOf };
 }

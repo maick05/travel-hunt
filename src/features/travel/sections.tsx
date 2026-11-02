@@ -90,8 +90,8 @@ function ItineraryMap({ data }: { data: TripData }) {
 }
 
 function ItineraryList({ data, onOpenTransport }: { data: TripData; onOpenTransport?: (key: string) => void }) {
-  const { groups, bannerOf, spentIn } = useMemo(() => {
-    const { cityOf, bannerOf } = createPlaces(data.locals);
+  const { groups, bannerOf, countryOf, spentIn } = useMemo(() => {
+    const { cityOf, bannerOf, countryOf } = createPlaces(data.locals);
     const byCity = new Map<string, typeof data.activities>();
     for (const a of data.activities) {
       const city = cityOf(a.place);
@@ -99,7 +99,7 @@ function ItineraryList({ data, onOpenTransport }: { data: TripData; onOpenTransp
     }
 
     const totals = costsByCity(data);
-    return { groups: [...byCity.entries()], bannerOf, spentIn: (city: string) => totals.get(cityCostKey(city))?.totalBRL ?? 0 };
+    return { groups: [...byCity.entries()], bannerOf, countryOf, spentIn: (city: string) => totals.get(cityCostKey(city))?.totalBRL ?? 0 };
   }, [data]);
 
   if (groups.length === 1 && !groups[0][0]) {
@@ -113,6 +113,7 @@ function ItineraryList({ data, onOpenTransport }: { data: TripData; onOpenTransp
           key={city || 'sem-cidade'}
           title={city || 'Sem cidade'}
           banner={bannerOf(city)}
+          country={countryOf(city)}
           subtitle={[
             `${items.length} ${items.length === 1 ? 'atividade' : 'atividades'}`,
             formatDate(items[0].start),
@@ -360,7 +361,7 @@ export function TransportSection({ data, focusKey }: { data: TripData; focusKey?
   const [view, setView] = useState<TransportView>('list');
   if (!data.transports.length) return <Empty />;
 
-  const { cityOf, bannerOf } = createPlaces(data.locals);
+  const { cityOf, bannerOf, countryOf } = createPlaces(data.locals);
   const destinations = new Map<string, { city: string; transports: TripData['transports'] }>();
   for (const transport of data.transports) {
     const city = cityOf(transport.to).trim();
@@ -381,6 +382,7 @@ export function TransportSection({ data, focusKey }: { data: TripData; focusKey?
             key={key}
             title={group.city || 'Sem local'}
             banner={bannerOf(group.city)}
+            country={countryOf(group.city)}
             subtitle={`${group.transports.length} ${group.transports.length === 1 ? 'transporte' : 'transportes'}`}
             defaultOpen={group.transports.some((transport) => transportKey(transport) === focusKey)}>
             <TransportCards data={data} transports={group.transports} focusKey={focusKey} />
@@ -402,11 +404,11 @@ function TransportCards({ data, transports, focusKey }: { data: TripData; transp
             defaultOpen={focusKey === transportKey(t)}
             header={
               <View style={styles.row}>
-                <TransportIconTip tip={`Meio de transporte: ${t.mode || 'Não informado'}`}>
+                <TransportIconTip tip={`${t.mode || 'Não informado'}`}>
                   <IconBubble name={modeIcon(t.mode)} />
                 </TransportIconTip>
                 {t.platform ? (
-                  <TransportIconTip tip={`Plataforma: ${t.platform}`}>
+                  <TransportIconTip tip={`${t.platform}`}>
                     <BrandBadge name={t.platform} size={32} />
                   </TransportIconTip>
                 ) : null}
@@ -460,7 +462,7 @@ function TransportIconTip({ tip, children }: { tip: string; children: React.Reac
 export function FoodSection({ data }: { data: TripData }) {
   if (!data.meals.length) return <Empty />;
 
-  const { cityOf, bannerOf } = createPlaces(data.locals);
+  const { cityOf, bannerOf, countryOf } = createPlaces(data.locals);
   const cities = new Map<string, { city: string; meals: TripData['meals'] }>();
   for (const meal of data.meals) {
     const city = cityOf(meal.place).trim();
@@ -477,6 +479,7 @@ export function FoodSection({ data }: { data: TripData }) {
           key={key}
           title={group.city || 'Sem local'}
           banner={bannerOf(group.city)}
+          country={countryOf(group.city)}
           subtitle={`${group.meals.length} ${group.meals.length === 1 ? 'refeição' : 'refeições'}`}>
           <FoodDays data={data} meals={group.meals} />
         </Accordion>
@@ -591,7 +594,7 @@ export function MoneySection({ data }: { data: TripData }) {
 
 function CityCosts({ data }: { data: TripData }) {
   const cities = [...costsByCity(data).entries()];
-  const { bannerOf, cityOf } = createPlaces(data.locals);
+  const { bannerOf, cityOf, countryOf } = createPlaces(data.locals);
   const firstActivity = new Map<string, number>();
   for (const activity of data.activities) {
     if (activity.start === null) continue;
@@ -603,7 +606,7 @@ function CityCosts({ data }: { data: TripData }) {
   return (
     <View style={styles.list}>
       {cities.map(([key, city]) => (
-        <Accordion key={key} title={city.city || 'Sem local'} banner={bannerOf(city.city)} subtitle={`Total estimado: ${formatBRL(city.totalBRL)}`}>
+        <Accordion key={key} title={city.city || 'Sem local'} banner={bannerOf(city.city)} country={countryOf(city.city)} subtitle={`Total estimado: ${formatBRL(city.totalBRL)}`}>
           {city.bills.map(({ bill, brl, share }, index) => (
             <BillCard key={`${bill.reference}-${bill.description}-${index}`} bill={bill} brl={brl} currencies={data.currencies} share={share} />
           ))}
