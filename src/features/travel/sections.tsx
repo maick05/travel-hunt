@@ -240,12 +240,18 @@ function DayList({
                         }
                       />
                     ) : null}
+                    {a.reserved !== null || a.reservationAvailableDate !== null || a.reservationWaitReason ? (
+                      <TransportIconTip tip={[
+                        a.reserved === null ? '' : `Reservado (ticket/valor): ${a.reserved ? 'Sim' : 'Não'}`,
+                        a.reservationAvailableDate === null ? '' : `Reserva possível em: ${formatDate(a.reservationAvailableDate)}`,
+                        a.reservationWaitReason ? `Motivo da espera: ${a.reservationWaitReason}` : '',
+                      ].filter(Boolean).join('\n')}>
+                        <MaterialCommunityIcons name={a.reserved ? 'ticket-confirmation-outline' : 'ticket-outline'} size={20} color={Colors.light.accent} />
+                      </TransportIconTip>
+                    ) : null}
                   </View>
                   <PlaceLink place={a.place} />
                   <Field label="Obs." value={a.notes} />
-                  <Field label="Reservado (ticket/valor)" value={a.reserved === null ? undefined : a.reserved ? 'Sim' : 'Não'} />
-                  <Field label="Reserva possível em" value={a.reservationAvailableDate === null ? undefined : formatDate(a.reservationAvailableDate)} />
-                  <Field label="Motivo da espera" value={a.reservationWaitReason} />
                   <FileLink url={a.voucher} />
                   <ActivityCost data={data} code={a.code} />
                 </View>
@@ -417,7 +423,7 @@ function TransportCards({ data, transports, focusKey }: { data: TripData; transp
                 </TransportIconTip>
                 {t.platform ? (
                   <TransportIconTip tip={`${t.platform}`}>
-                    <BrandBadge name={t.platform} size={32} />
+                    <BrandBadge name={t.platform} size={36} />
                   </TransportIconTip>
                 ) : null}
                 <View style={styles.flex}>
@@ -443,18 +449,23 @@ function TransportCards({ data, transports, focusKey }: { data: TripData; transp
 }
 
 function TransportIconTip({ tip, children }: { tip: string; children: React.ReactNode }) {
-  const [show, setShow] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const show = hovered || focused || pinned;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={tip}
-      onHoverIn={() => setShow(true)}
-      onHoverOut={() => setShow(false)}
-      onFocus={() => setShow(true)}
-      onBlur={() => setShow(false)}
+      accessibilityState={{ expanded: show }}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); setPinned(false); }}
       onPress={(event) => {
         event.stopPropagation();
-        setShow((visible) => !visible);
+        setFocused(false);
+        setPinned((visible) => !visible);
       }}
       style={[styles.iconTip, show && styles.transportIconActive]}>
       {children}
@@ -719,19 +730,36 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
       </Pressable>
       {reserves.map((reserve, index) => (
         <Card key={`${reserve.id}-${index}`}>
-          <View style={styles.row}>
-            <View style={styles.flex}>
-              <ThemedText type="smallBold">{reserve.platform || 'Plataforma não informada'}</ThemedText>
-              <Field label="Reserva" value={reserve.id || undefined} />
-              <Field label="Data" value={reserve.date === null ? undefined : formatDate(reserve.date)} />
-              <Field label="Tipo" value={reserve.type} />
-              <Field label="Ativo" value={reserve.assetDescription} />
-              <Field label="Quantidade do ativo" value={reserveNumber(reserve.quantity)} />
-              <Field label="Valor reservado" value={reserveMoney(reserve.value, reserve.currency, data.currencies)} />
-              <Field label="Custo em taxas" value={reserveMoney(reserve.fees, reserve.currency, data.currencies)} />
-              <Field label="Cotação usada" value={reserveNumber(reserve.usedRate)} />
+          <View style={styles.flex}>
+            <ThemedText type="smallBold">{reserve.platform || 'Plataforma não informada'}</ThemedText>
+            {reserve.value !== null ? (
+              <ThemedText type="smallBold">{reserveMoney(reserve.value, reserve.currency, data.currencies)}</ThemedText>
+            ) : null}
+            <View style={styles.metaRow}>
+              <TransportIconTip tip={[
+                reserve.id ? `Reserva: ${reserve.id}` : '',
+                reserve.date === null ? '' : `Data: ${formatDate(reserve.date)}`,
+                reserve.type ? `Tipo: ${reserve.type}` : '',
+                reserve.assetDescription ? `Ativo: ${reserve.assetDescription}` : '',
+                reserve.fees === null ? '' : `Custo em taxas: ${reserveMoney(reserve.fees, reserve.currency, data.currencies)}`,
+                reserve.usedRate === null ? '' : `Cotação usada: ${reserveNumber(reserve.usedRate)}`,
+              ].filter(Boolean).join('\n') || 'Detalhes da reserva não informados'}>
+                <MaterialCommunityIcons name="information-outline" size={20} color={Colors.light.accent} />
+              </TransportIconTip>
+              {reserve.status ? (
+                <TransportIconTip tip={`Status: ${reserve.status}`}>
+                  <MaterialCommunityIcons name={statusTone(reserve.status) === 'good' ? 'check-circle-outline' : 'clock-outline'} size={20} color={Colors.light.accent} />
+                </TransportIconTip>
+              ) : null}
+              {reserve.quantity !== null ? (
+                <View style={styles.meta}>
+                  <TransportIconTip tip="Quantidade do ativo">
+                    <MaterialCommunityIcons name="cube-outline" size={20} color={Colors.light.accent} />
+                  </TransportIconTip>
+                  <ThemedText type="small">{reserveNumber(reserve.quantity)}</ThemedText>
+                </View>
+              ) : null}
             </View>
-            {reserve.status ? <StatusBadge status={reserve.status} /> : null}
           </View>
         </Card>
       ))}
