@@ -18,6 +18,8 @@ const BRANDS: Record<string, Brand> = {
   tap: { color: '#0E8A5F' },
   iberia: { color: '#D7192D' },
   smiles: { color: '#F7941D' },
+  arq: { color: '#FFFFFF', logo: require('@/assets/brands/arq.jpg') },
+  nubank: { color: '#820AD1', logo: require('@/assets/brands/nubank.png') },
   booking: { color: '#1A4FA3' },
   airbnb: { color: '#FF5A5F' },
   decolar: { color: '#7C3AED' },

@@ -740,11 +740,13 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
   const [open, setOpen] = useState(false);
   const [showTip, setShowTip] = useState(false);
   const asset = reserves[0].asset || 'Sem ativo';
+  const descriptions = [...new Set(reserves.map((reserve) => reserve.assetDescription.trim()).filter(Boolean))];
+  const assetTitle = [asset, ...descriptions].join(' · ');
   return (
     <View style={styles.list}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Despesas vinculadas ao ativo ${asset}`}
+        accessibilityLabel={`Despesas vinculadas ao ativo ${assetTitle}`}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((value) => !value)}
         onHoverIn={() => setShowTip(true)}
@@ -752,7 +754,7 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
         onFocus={() => setShowTip(true)}
         onBlur={() => setShowTip(false)}
         style={[styles.reserveHeader, showTip && styles.transportIconActive]}>
-        <ThemedText type="smallBold">{asset}</ThemedText>
+        <ThemedText type="smallBold" style={styles.reserveTitle}>{assetTitle}</ThemedText>
         <View style={styles.iconTip}>
           <MaterialCommunityIcons name="receipt-text-outline" size={22} color={open ? Colors.light.accent : Colors.light.textSecondary} />
           {showTip && (
@@ -766,35 +768,38 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
       </Pressable>
       {reserves.map((reserve, index) => (
         <Card key={`${reserve.id}-${index}`}>
-          <View style={styles.flex}>
-            <ThemedText type="smallBold">{reserve.platform || 'Plataforma não informada'}</ThemedText>
-            {reserve.value !== null ? (
-              <ThemedText type="smallBold">{reserveMoney(reserve.value, reserve.currency, data.currencies)}</ThemedText>
-            ) : null}
-            <View style={styles.metaRow}>
-              <TransportIconTip tip={[
-                reserve.id ? `Reserva: ${reserve.id}` : '',
-                reserve.date === null ? '' : `Data: ${formatDate(reserve.date)}`,
-                reserve.type ? `Tipo: ${reserve.type}` : '',
-                reserve.assetDescription ? `Ativo: ${reserve.assetDescription}` : '',
-                reserve.fees === null ? '' : `Custo em taxas: ${reserveMoney(reserve.fees, reserve.currency, data.currencies)}`,
-                reserve.usedRate === null ? '' : `Cotação usada: ${reserveNumber(reserve.usedRate)}`,
-              ].filter(Boolean).join('\n') || 'Detalhes da reserva não informados'}>
-                <MaterialCommunityIcons name="information-outline" size={20} color={Colors.light.accent} />
-              </TransportIconTip>
-              {reserve.status ? (
-                <TransportIconTip tip={`Status: ${reserve.status}`}>
-                  <MaterialCommunityIcons name={statusTone(reserve.status) === 'good' ? 'check-circle-outline' : 'clock-outline'} size={20} color={Colors.light.accent} />
+          <View style={styles.row}>
+            {reserve.platform ? <BrandBadge name={reserve.platform} size={36} /> : null}
+            <View style={styles.flex}>
+              <ThemedText type="smallBold">{reserve.platform || 'Plataforma não informada'}</ThemedText>
+              {reserve.value !== null ? (
+                <ThemedText type="smallBold">{reserveMoney(reserve.value, reserve.currency, data.currencies)}</ThemedText>
+              ) : null}
+              <View style={styles.metaRow}>
+                <TransportIconTip tip={[
+                  reserve.id ? `Reserva: ${reserve.id}` : '',
+                  reserve.date === null ? '' : `Data: ${formatDate(reserve.date)}`,
+                  reserve.type ? `Tipo: ${reserve.type}` : '',
+                  reserve.assetDescription ? `Ativo: ${reserve.assetDescription}` : '',
+                  reserve.fees === null ? '' : `Custo em taxas: ${reserveMoney(reserve.fees, reserve.currency, data.currencies)}`,
+                  reserve.usedRate === null ? '' : `Cotação usada: ${reserveNumber(reserve.usedRate)}`,
+                ].filter(Boolean).join('\n') || 'Detalhes da reserva não informados'}>
+                  <MaterialCommunityIcons name="information-outline" size={20} color={Colors.light.accent} />
                 </TransportIconTip>
-              ) : null}
-              {reserve.quantity !== null ? (
-                <View style={styles.meta}>
-                  <TransportIconTip tip="Quantidade do ativo">
-                    <MaterialCommunityIcons name="cube-outline" size={20} color={Colors.light.accent} />
+                {reserve.status ? (
+                  <TransportIconTip tip={`Status: ${reserve.status}`}>
+                    <MaterialCommunityIcons name={statusTone(reserve.status) === 'good' ? 'check-circle-outline' : 'clock-outline'} size={20} color={Colors.light.accent} />
                   </TransportIconTip>
-                  <ThemedText type="small">{reserveNumber(reserve.quantity)}</ThemedText>
-                </View>
-              ) : null}
+                ) : null}
+                {reserve.quantity !== null ? (
+                  <View style={styles.meta}>
+                    <TransportIconTip tip="Quantidade do ativo">
+                      <MaterialCommunityIcons name="cube-outline" size={20} color={Colors.light.accent} />
+                    </TransportIconTip>
+                    <ThemedText type="small">{reserveNumber(reserve.quantity)}</ThemedText>
+                  </View>
+                ) : null}
+              </View>
             </View>
           </View>
         </Card>
@@ -945,6 +950,7 @@ const styles = StyleSheet.create({
   filterOptions: { flexGrow: 0 },
   filterOption: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   reserveHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
+  reserveTitle: { flex: 1, marginRight: Spacing.two },
   reserveTooltipWrap: { position: 'absolute', bottom: '100%', right: 0, width: 220, alignItems: 'flex-end', marginBottom: Spacing.one },
   reserveIndicator: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   reserveIndicatorText: { flexShrink: 1, minWidth: 0 },

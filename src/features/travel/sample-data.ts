@@ -69,8 +69,8 @@ export const sampleRows: Record<TableKey, SheetRows> = {
   ],
   valueReserves: [
     ['ID', 'Data da Reserva', 'Plataforma', 'Tipo', 'Ativo', 'Ativo Desc.', 'Quantidade Ativo', 'Valor Reservado', 'Custo em Taxas', 'Cotação Usada', 'Moeda', 'Status'],
-    [1, 46329, 'Plataforma Exemplo', 'Investimento', 'ATIVO1', 'Ativo exemplo 1', 1, 100, 0, 100, 'R$', 'Reservado'],
-    [2, 46329, 'Plataforma Exemplo', 'Investimento', 'ATIVO2', 'Ativo exemplo 2', 2, 50, 0, 25, 'R$', 'Reservado'],
+    [1, 46329, 'ARQ', 'Investimento', 'ATIVO1', 'Ativo exemplo 1', 1, 100, 0, 100, 'R$', 'Reservado'],
+    [2, 46329, 'Nubank', 'Investimento', 'ATIVO2', 'Ativo exemplo 2', 2, 50, 0, 25, 'R$', 'Reservado'],
   ],
   locals: [
     ['Local', 'País', 'Localização Google', 'Banner'],
