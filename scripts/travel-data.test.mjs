@@ -15,6 +15,7 @@ const { schemas } = require('../src/features/travel/schema.ts');
 const { sampleRows } = require('../src/features/travel/sample-data.ts');
 const { hasReserveAsset } = require('../src/features/travel/reserves.ts');
 const { billToBRL } = require('../src/features/travel/format.ts');
+const { mealCostsByType } = require('../src/features/travel/costs.ts');
 const { registerCoords } = require('../src/features/travel/places.ts');
 const { buildMap, itineraryActivities } = require('../src/features/travel/map-data.ts');
 
@@ -77,4 +78,15 @@ test('ponto inicial permanece no mapa sem ocultar uma volta posterior', () => {
   assert.ok(buildMap(data).points.some((point) => point.emoji === '🚩' && point.items.some((item) => item.title === 'Início da viagem')));
   data.transports = [];
   assert.equal(itineraryActivities(data).length, 3);
+});
+
+test('despesas de comida são agrupadas pelo tipo de refeição sem duplicar referências', () => {
+  const data = parseTables(sampleRows);
+  const mealBill = data.bills.find((bill) => bill.type === 'Comida');
+  data.meals.push({ ...data.meals.find((meal) => meal.code === mealBill.reference) });
+  data.bills.push({ ...mealBill, reference: '999', amount: 10, currency: 'R$', usedRate: null });
+  const totals = mealCostsByType(data);
+  assert.ok(Math.abs(totals.get('Almoço') - billToBRL(mealBill, data.currencies)) < 0.001);
+  assert.equal(totals.get('Sem refeição vinculada'), 10);
+  assert.equal(totals.size, 2);
 });

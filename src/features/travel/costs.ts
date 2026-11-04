@@ -27,6 +27,20 @@ export function costFor(data: TripData, kind: CostKind, code: string): Cost {
   return { bills, totalBRL };
 }
 
+export function mealCostsByType(data: TripData): Map<string, number> {
+  const mealTypes = new Map<string, string>();
+  for (const meal of data.meals) {
+    if (meal.code && !mealTypes.has(meal.code)) mealTypes.set(meal.code, meal.type || 'Sem tipo');
+  }
+  const totals = new Map<string, number>();
+  for (const bill of data.bills) {
+    if (normalize(bill.type) !== BILL_TYPE.meals) continue;
+    const type = mealTypes.get(bill.reference) ?? 'Sem refeição vinculada';
+    totals.set(type, (totals.get(type) ?? 0) + (billToBRL(bill, data.currencies) ?? 0));
+  }
+  return totals;
+}
+
 export type CityCost = {
   city: string;
   totalBRL: number;

@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { BrandBadge, categoryIcon, mealIcon, modeIcon, type IconName } from '@/components/brand';
 import { PieChart, type ChartItem } from '@/components/charts';
@@ -21,7 +21,7 @@ import {
   Tabs
 } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { cityCostKey, costFor, costsByCity } from './costs';
+import { cityCostKey, costFor, costsByCity, mealCostsByType } from './costs';
 import {
   billToBRL,
   dayKey,
@@ -44,6 +44,15 @@ import type { Bill, Currency, Flight } from './schema';
 import type { TripData } from './use-travel-data';
 
 type ItineraryView = 'list' | 'map';
+function ListScroll({ children, topInset = 0 }: { children: React.ReactNode; topInset?: number }) {
+  const { height } = useWindowDimensions();
+  return (
+    <ScrollView nestedScrollEnabled style={{ maxHeight: Math.min(560, Math.max(240, height * 0.6)) }} contentContainerStyle={[styles.list, { paddingTop: topInset }]}>
+      {children}
+    </ScrollView>
+  );
+}
+
 const VIEWS: { key: ItineraryView; label: string; icon: IconName }[] = [
   { key: 'list', label: 'Lista', icon: 'format-list-bulleted' },
   { key: 'map', label: 'Mapa', icon: 'map' },
@@ -66,7 +75,7 @@ export function ItinerarySection({
       {view === 'map' ? (
         <ItineraryMap data={data} />
       ) : (
-        <ItineraryList data={data} onOpenTransport={onOpenTransport} />
+        <ListScroll><ItineraryList data={data} onOpenTransport={onOpenTransport} /></ListScroll>
       )}
     </View>
   );
@@ -271,7 +280,7 @@ export function FlightsSection({ data }: { data: TripData }) {
   for (const f of data.flights) bookings.set(f.code, [...(bookings.get(f.code) ?? []), f]);
 
   return (
-    <View style={styles.list}>
+    <ListScroll>
       {[...bookings.entries()].map(([code, legs]) => {
         const cost = costFor(data, 'flights', code);
         return (
@@ -326,14 +335,14 @@ export function FlightsSection({ data }: { data: TripData }) {
           </ExpandCard>
         );
       })}
-    </View>
+    </ListScroll>
   );
 }
 
 export function HotelsSection({ data }: { data: TripData }) {
   if (!data.hotels.length) return <Empty />;
   return (
-    <View style={styles.list}>
+    <ListScroll>
       {data.hotels.map((h) => {
         const cost = costFor(data, 'hotels', h.code);
         return (
@@ -361,7 +370,7 @@ export function HotelsSection({ data }: { data: TripData }) {
           </ExpandCard>
         );
       })}
-    </View>
+    </ListScroll>
   );
 }
 
@@ -388,21 +397,23 @@ export function TransportSection({ data, focusKey }: { data: TripData; focusKey?
   return (
     <View style={styles.list}>
       <Tabs tabs={TRANSPORT_VIEWS} value={view} onChange={setView} secondary />
-      {view === 'list' ? (
-        <TransportCards data={data} transports={data.transports} focusKey={focusKey} />
-      ) : (
-        [...destinations.entries()].map(([key, group]) => (
-          <Accordion
-            key={key}
-            title={group.city || 'Sem local'}
-            banner={bannerOf(group.city)}
-            country={countryOf(group.city)}
-            subtitle={`${group.transports.length} ${group.transports.length === 1 ? 'transporte' : 'transportes'}`}
-            defaultOpen={group.transports.some((transport) => transportKey(transport) === focusKey)}>
-            <TransportCards data={data} transports={group.transports} focusKey={focusKey} />
-          </Accordion>
-        ))
-      )}
+      <ListScroll>
+        {view === 'list' ? (
+          <TransportCards data={data} transports={data.transports} focusKey={focusKey} />
+        ) : (
+          [...destinations.entries()].map(([key, group]) => (
+            <Accordion
+              key={key}
+              title={group.city || 'Sem local'}
+              banner={bannerOf(group.city)}
+              country={countryOf(group.city)}
+              subtitle={`${group.transports.length} ${group.transports.length === 1 ? 'transporte' : 'transportes'}`}
+              defaultOpen={group.transports.some((transport) => transportKey(transport) === focusKey)}>
+              <TransportCards data={data} transports={group.transports} focusKey={focusKey} />
+            </Accordion>
+          ))
+        )}
+      </ListScroll>
     </View>
   );
 }
@@ -481,6 +492,7 @@ function TransportIconTip({ tip, children }: { tip: string; children: React.Reac
 }
 
 export function FoodSection({ data }: { data: TripData }) {
+  const [view, setView] = useState<'list' | 'chart'>('list');
   if (!data.meals.length) return <Empty />;
 
   const { cityOf, bannerOf, countryOf } = createPlaces(data.locals);
@@ -495,16 +507,17 @@ export function FoodSection({ data }: { data: TripData }) {
 
   return (
     <View style={styles.list}>
-      {[...cities.entries()].map(([key, group]) => (
-        <Accordion
-          key={key}
-          title={group.city || 'Sem local'}
-          banner={bannerOf(group.city)}
-          country={countryOf(group.city)}
-          subtitle={`${group.meals.length} ${group.meals.length === 1 ? 'refeição' : 'refeições'}`}>
-          <FoodDays data={data} meals={group.meals} />
-        </Accordion>
-      ))}
+      <Tabs tabs={FOOD_VIEWS} value={view} onChange={setView} secondary />
+      {view === 'chart' ? <MealChart data={data} /> : <ListScroll>{[...cities.entries()].map(([key, group]) => (
+          <Accordion
+            key={key}
+            title={group.city || 'Sem local'}
+            banner={bannerOf(group.city)}
+            country={countryOf(group.city)}
+            subtitle={`${group.meals.length} ${group.meals.length === 1 ? 'refeição' : 'refeições'}`}>
+            <FoodDays data={data} meals={group.meals} />
+          </Accordion>
+        ))}</ListScroll>}
     </View>
   );
 }
@@ -559,6 +572,26 @@ function FoodDays({ data, meals }: { data: TripData; meals: TripData['meals'] })
 const CATEGORY_COLORS = ['#4F8DF7', '#34C28A', '#F59E42', '#A678F0', '#F06A8A', '#3CC4D6'];
 const TONE_COLORS = { good: '#34C28A', warn: '#F59E42', neutral: '#8FA3BF' } as const;
 
+const FOOD_VIEWS: { key: 'list' | 'chart'; label: string; icon: IconName }[] = [
+  { key: 'list', label: 'Lista', icon: 'format-list-bulleted' },
+  { key: 'chart', label: 'Gráfico', icon: 'chart-pie' },
+];
+
+type MoneyChart = 'type' | 'category' | 'status' | 'meals';
+const MONEY_CHARTS: { key: MoneyChart; label: string; icon: IconName }[] = [
+  { key: 'type', label: 'Tipo', icon: 'shape-outline' },
+  { key: 'category', label: 'Categoria', icon: 'tag-outline' },
+  { key: 'status', label: 'Status', icon: 'list-status' },
+  { key: 'meals', label: 'Refeições', icon: 'silverware-fork-knife' },
+];
+
+function MealChart({ data }: { data: TripData }) {
+  const items = [...mealCostsByType(data)].map(([label, value], index) => ({
+    label, value, color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+  }));
+  return <PieChart title="Despesas por tipo de refeição" items={items} format={formatBRL} />;
+}
+
 type MoneyView = 'charts' | 'bills' | 'cities' | 'reserves';
 const MONEY_VIEWS: { key: MoneyView; label: string; icon: IconName }[] = [
   { key: 'charts', label: 'Gráficos', icon: 'chart-pie' },
@@ -602,6 +635,7 @@ function reserveMoney(value: number | null, code: string, currencies: Currency[]
 
 export function MoneySection({ data }: { data: TripData }) {
   const [view, setView] = useState<MoneyView>('charts');
+  const [chart, setChart] = useState<MoneyChart>('type');
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   if (!data.bills.length && !data.valueReserves.length) return <Empty />;
@@ -665,18 +699,20 @@ export function MoneySection({ data }: { data: TripData }) {
       )}
       {view === 'charts' ? (
         <>
-          <PieChart title="Despesas por tipo" items={byType} format={formatBRL} />
-          <PieChart title="Despesas por categoria" items={byCategory} format={formatBRL} />
-          <PieChart title="Despesas por status" items={byStatus} format={formatBRL} />
+          <Tabs tabs={MONEY_CHARTS} value={chart} onChange={setChart} secondary />
+          {chart === 'type' && <PieChart key="type" title="Despesas por tipo" items={byType} format={formatBRL} />}
+          {chart === 'category' && <PieChart key="category" title="Despesas por categoria" items={byCategory} format={formatBRL} />}
+          {chart === 'status' && <PieChart key="status" title="Despesas por status" items={byStatus} format={formatBRL} />}
+          {chart === 'meals' && <MealChart data={data} />}
         </>
       ) : view === 'bills' ? (
-        filtered.length ? filtered.map(({ bill, brl }, index) => (
+        filtered.length ? <ListScroll>{filtered.map(({ bill, brl }, index) => (
           <BillCard key={`${bill.reference}-${bill.description}-${index}`} bill={bill} brl={brl} currencies={data.currencies} reserves={data.valueReserves} />
-        )) : <Empty>Nenhuma despesa encontrada.</Empty>
+        ))}</ListScroll> : <Empty>Nenhuma despesa encontrada.</Empty>
       ) : view === 'reserves' ? (
-        <ValueReserves data={data} />
+        <ListScroll topInset={48}><ValueReserves data={data} /></ListScroll>
       ) : (
-        <CityCosts data={{ ...data, bills: filtered.map(({ bill }) => bill) }} />
+        <ListScroll><CityCosts data={{ ...data, bills: filtered.map(({ bill }) => bill) }} /></ListScroll>
       )}
     </View>
   );
