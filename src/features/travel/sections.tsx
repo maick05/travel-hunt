@@ -46,10 +46,10 @@ import type { Bill, Currency, Flight } from './schema';
 import type { TripData } from './use-travel-data';
 
 type ItineraryView = 'list' | 'map';
-function ListScroll({ children, topInset = 0 }: { children: React.ReactNode; topInset?: number }) {
+function ListScroll({ children }: { children: React.ReactNode }) {
   const { height } = useWindowDimensions();
   return (
-    <ScrollView nestedScrollEnabled style={{ maxHeight: Math.min(560, Math.max(240, height * 0.6)) }} contentContainerStyle={[styles.list, { paddingTop: topInset }]}>
+    <ScrollView nestedScrollEnabled style={{ maxHeight: Math.min(560, Math.max(240, height * 0.6)) }} contentContainerStyle={[styles.list, styles.listContent]}>
       {children}
     </ScrollView>
   );
@@ -495,6 +495,7 @@ function TransportIconTip({ tip, children }: { tip: string; children: React.Reac
 
 export function FoodSection({ data }: { data: TripData }) {
   const [view, setView] = useState<'list' | 'chart'>('list');
+  const [chart, setChart] = useState<'type' | 'status'>('type');
   if (!data.meals.length) return <Empty />;
 
   const { cityOf, bannerOf, countryOf } = createPlaces(data.locals);
@@ -510,7 +511,12 @@ export function FoodSection({ data }: { data: TripData }) {
   return (
     <View style={styles.list}>
       <Tabs tabs={FOOD_VIEWS} value={view} onChange={setView} secondary />
-      {view === 'chart' ? <MealChart data={data} /> : <ListScroll>{[...cities.entries()].map(([key, group]) => (
+      {view === 'chart' ? (
+        <>
+          <Tabs tabs={FOOD_CHARTS} value={chart} onChange={setChart} secondary />
+          {chart === 'type' ? <MealChart data={data} /> : <MealStatusChart data={data} />}
+        </>
+      ) : <ListScroll>{[...cities.entries()].map(([key, group]) => (
           <Accordion
             key={key}
             title={group.city || 'Sem local'}
@@ -579,6 +585,11 @@ const FOOD_VIEWS: { key: 'list' | 'chart'; label: string; icon: IconName }[] = [
   { key: 'chart', label: 'Gráfico', icon: 'chart-pie' },
 ];
 
+const FOOD_CHARTS: { key: 'type' | 'status'; label: string; icon: IconName }[] = [
+  { key: 'type', label: 'Tipo', icon: 'silverware-fork-knife' },
+  { key: 'status', label: 'Status', icon: 'list-status' },
+];
+
 type MoneyChart = 'type' | 'category' | 'status' | 'meals';
 const MONEY_CHARTS: { key: MoneyChart; label: string; icon: IconName }[] = [
   { key: 'type', label: 'Tipo', icon: 'shape-outline' },
@@ -592,6 +603,16 @@ function MealChart({ data }: { data: TripData }) {
     label, value, color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
   }));
   return <PieChart title="Despesas por tipo de refeição" items={items} format={formatBRL} />;
+}
+
+function MealStatusChart({ data }: { data: TripData }) {
+  const totals = new Map<string, number>();
+  for (const meal of data.meals) {
+    const status = meal.status.trim() || 'Sem status';
+    totals.set(status, (totals.get(status) ?? 0) + 1);
+  }
+  const items = [...totals].map(([label, value], index) => ({ label, value, color: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }));
+  return <PieChart title="Refeições por status" items={items} format={(value) => `${value} ${value === 1 ? 'refeição' : 'refeições'}`} />;
 }
 
 type MoneyView = 'charts' | 'bills' | 'cities' | 'reserves';
@@ -712,7 +733,7 @@ export function MoneySection({ data }: { data: TripData }) {
           <BillCard key={`${bill.reference}-${bill.description}-${index}`} bill={bill} brl={brl} currencies={data.currencies} reserves={data.valueReserves} />
         ))}</ListScroll> : <Empty>Nenhuma despesa encontrada.</Empty>
       ) : view === 'reserves' ? (
-        <ListScroll topInset={48}><ValueReserves data={data} /></ListScroll>
+        <ListScroll><ValueReserves data={data} /></ListScroll>
       ) : (
         <ListScroll><CityCosts data={{ ...data, bills: filtered.map(({ bill }) => bill) }} /></ListScroll>
       )}
@@ -746,67 +767,69 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
   const assetTitle = [asset, ...descriptions].join(' · ');
   return (
     <View style={styles.list}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Despesas vinculadas ao ativo ${assetTitle}`}
-        accessibilityState={{ expanded: open }}
-        onPress={() => setOpen((value) => !value)}
-        onHoverIn={() => setShowTip(true)}
-        onHoverOut={() => setShowTip(false)}
-        onFocus={() => setShowTip(true)}
-        onBlur={() => setShowTip(false)}
-        style={[styles.reserveHeader, showTip && styles.transportIconActive]}>
-        <ThemedText type="smallBold" style={styles.reserveTitle}>{assetTitle}</ThemedText>
-        <View style={styles.iconTip}>
-          <MaterialCommunityIcons name="receipt-text-outline" size={22} color={open ? Colors.light.accent : Colors.light.textSecondary} />
-          {showTip && (
-            <View style={styles.reserveTooltipWrap} pointerEvents="none">
-              <View style={styles.transportTooltip}>
-                <ThemedText type="small" style={styles.tooltipText}>Despesas vinculadas ao ativo</ThemedText>
+      <Card>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Despesas vinculadas ao ativo ${assetTitle}`}
+          accessibilityState={{ expanded: open }}
+          onPress={() => setOpen((value) => !value)}
+          onHoverIn={() => setShowTip(true)}
+          onHoverOut={() => setShowTip(false)}
+          onFocus={() => setShowTip(true)}
+          onBlur={() => setShowTip(false)}
+          style={[styles.reserveHeader, showTip && styles.transportIconActive]}>
+          <ThemedText type="smallBold" style={styles.reserveTitle}>{assetTitle}</ThemedText>
+          <View style={styles.iconTip}>
+            <MaterialCommunityIcons name="receipt-text-outline" size={22} color={open ? Colors.light.accent : Colors.light.textSecondary} />
+            {showTip && (
+              <View style={styles.reserveTooltipWrap} pointerEvents="none">
+                <View style={styles.transportTooltip}>
+                  <ThemedText type="small" style={styles.tooltipText}>Despesas vinculadas ao ativo</ThemedText>
+                </View>
               </View>
-            </View>
-          )}
-        </View>
-      </Pressable>
-      {reserves.map((reserve, index) => (
-        <Card key={`${reserve.id}-${index}`}>
-          <View style={styles.row}>
-            {reserve.platform ? <BrandBadge name={reserve.platform} size={36} /> : null}
-            <View style={styles.flex}>
-              <ThemedText type="smallBold">{reserve.platform || 'Plataforma não informada'}</ThemedText>
-              {reserve.value !== null ? (
-                <ThemedText type="smallBold">{reserveMoney(reserve.value, reserve.currency, data.currencies)}</ThemedText>
-              ) : null}
-              <ReserveQuote reserve={reserve} currencies={data.currencies} />
-              <View style={styles.metaRow}>
-                <TransportIconTip tip={[
-                  reserve.id ? `Reserva: ${reserve.id}` : '',
-                  reserve.date === null ? '' : `Data: ${formatDate(reserve.date)}`,
-                  reserve.type ? `Tipo: ${reserve.type}` : '',
-                  reserve.assetDescription ? `Ativo: ${reserve.assetDescription}` : '',
-                  reserve.fees === null ? '' : `Custo em taxas: ${reserveMoney(reserve.fees, reserve.currency, data.currencies)}`,
-                  reserve.usedRate === null ? '' : `Cotação usada: ${reserveNumber(reserve.usedRate)}`,
-                ].filter(Boolean).join('\n') || 'Detalhes da reserva não informados'}>
-                  <MaterialCommunityIcons name="information-outline" size={20} color={Colors.light.accent} />
-                </TransportIconTip>
-                {reserve.status ? (
-                  <TransportIconTip tip={`Status: ${reserve.status}`}>
-                    <MaterialCommunityIcons name={statusTone(reserve.status) === 'good' ? 'check-circle-outline' : 'clock-outline'} size={20} color={Colors.light.accent} />
+            )}
+          </View>
+        </Pressable>
+        {reserves.map((reserve, index) => (
+          <View key={`${reserve.id}-${index}`} style={styles.reserveEntry}>
+            <View style={styles.row}>
+              {reserve.platform ? <BrandBadge name={reserve.platform} size={36} /> : null}
+              <View style={styles.flex}>
+                <ThemedText type="smallBold">{reserve.platform || 'Plataforma não informada'}</ThemedText>
+                {reserve.value !== null ? (
+                  <ThemedText type="smallBold">{reserveMoney(reserve.value, reserve.currency, data.currencies)}</ThemedText>
+                ) : null}
+                <ReserveQuote reserve={reserve} currencies={data.currencies} />
+                <View style={styles.metaRow}>
+                  <TransportIconTip tip={[
+                    reserve.id ? `Reserva: ${reserve.id}` : '',
+                    reserve.date === null ? '' : `Data: ${formatDate(reserve.date)}`,
+                    reserve.type ? `Tipo: ${reserve.type}` : '',
+                    reserve.assetDescription ? `Ativo: ${reserve.assetDescription}` : '',
+                    reserve.fees === null ? '' : `Custo em taxas: ${reserveMoney(reserve.fees, reserve.currency, data.currencies)}`,
+                    reserve.usedRate === null ? '' : `Cotação usada: ${reserveNumber(reserve.usedRate)}`,
+                  ].filter(Boolean).join('\n') || 'Detalhes da reserva não informados'}>
+                    <MaterialCommunityIcons name="information-outline" size={20} color={Colors.light.accent} />
                   </TransportIconTip>
-                ) : null}
-                {reserve.quantity !== null ? (
-                  <View style={styles.meta}>
-                    <TransportIconTip tip="Quantidade do ativo">
-                      <MaterialCommunityIcons name="cube-outline" size={20} color={Colors.light.accent} />
+                  {reserve.status ? (
+                    <TransportIconTip tip={`Status: ${reserve.status}`}>
+                      <MaterialCommunityIcons name={statusTone(reserve.status) === 'good' ? 'check-circle-outline' : 'clock-outline'} size={20} color={Colors.light.accent} />
                     </TransportIconTip>
-                    <ThemedText type="small">{reserveNumber(reserve.quantity)}</ThemedText>
-                  </View>
-                ) : null}
+                  ) : null}
+                  {reserve.quantity !== null ? (
+                    <View style={styles.meta}>
+                      <TransportIconTip tip="Quantidade do ativo">
+                        <MaterialCommunityIcons name="cube-outline" size={20} color={Colors.light.accent} />
+                      </TransportIconTip>
+                      <ThemedText type="small">{reserveNumber(reserve.quantity)}</ThemedText>
+                    </View>
+                  ) : null}
+                </View>
               </View>
             </View>
           </View>
-        </Card>
-      ))}
+        ))}
+      </Card>
       {open && (bills.length > 0 ? (
         <>
           <ThemedText type="smallBold" themeColor="textSecondary">Despesas desta viagem</ThemedText>
@@ -974,6 +997,7 @@ function BillCard({ bill, brl, currencies, reserves, share = 1 }: { bill: Bill; 
 
 const styles = StyleSheet.create({
   list: { gap: Spacing.two },
+  listContent: { paddingHorizontal: Spacing.one, paddingVertical: Spacing.two },
   filterRow: { flexDirection: 'row', gap: Spacing.two },
   filterField: { flex: 1, minWidth: 0, gap: Spacing.one },
   filterSelect: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, borderRadius: Spacing.two, borderWidth: 1, borderColor: Colors.light.border, backgroundColor: Colors.light.backgroundElement },
@@ -984,6 +1008,7 @@ const styles = StyleSheet.create({
   filterOptions: { flexGrow: 0 },
   filterOption: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   reserveHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
+  reserveEntry: { borderTopWidth: 1, borderTopColor: Colors.light.border, paddingTop: Spacing.two },
   reserveTitle: { flex: 1, marginRight: Spacing.two },
   reserveTooltipWrap: { position: 'absolute', bottom: '100%', right: 0, width: 220, alignItems: 'flex-end', marginBottom: Spacing.one },
   reserveIndicator: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },

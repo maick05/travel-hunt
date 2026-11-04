@@ -38,8 +38,8 @@ export function BrandBadge({ name, size = 40 }: { name: string; size?: number })
   const brand = BRANDS[norm(name)] ?? { color: '#8FA3BF' };
   if (brand.logo) {
     return (
-      <View style={[styles.badge, styles.logoBox, { width: size, height: size, borderRadius: size / 3 }]}>
-        <Image source={brand.logo} style={{ width: size * 0.8, height: size * 0.8 }} resizeMode="contain" />
+      <View style={[styles.badge, { width: size, height: size }]}>
+        <Image source={brand.logo} style={{ width: size, height: size }} resizeMode="contain" />
       </View>
     );
   }
@@ -95,5 +95,4 @@ export function categoryIcon(category: string): IconName {
 
 const styles = StyleSheet.create({
   badge: { alignItems: 'center', justifyContent: 'center' },
-  logoBox: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#BFCFE6' },
 });

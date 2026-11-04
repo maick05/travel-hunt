@@ -169,7 +169,7 @@ export function Accordion({
     <View style={[styles.accordion, !sub && styles.accordionLevel]}>
       <Pressable
         onPress={() => setOpen((o) => !o)}
-        style={({ pressed }) => [styles.accordionHeader, sub && styles.accordionHeaderSub, pressed && styles.pressed]}>
+        style={({ pressed }) => [styles.accordionHeader, sub ? styles.accordionHeaderSub : styles.accordionHeaderLocation, pressed && styles.pressed]}>
         <IconBubble name={icon} size={sub ? 32 : 40} />
         <View style={styles.flex}>
           <ThemedText type={sub ? 'smallBold' : 'subtitle'} style={sub ? undefined : styles.accordionTitle}>
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   accordionTitle: { fontSize: 22, lineHeight: 28 },
   banner: { minHeight: 150, borderRadius: Spacing.three, overflow: 'hidden', backgroundColor: c.accentSoft },
   bannerImage: { flex: 1 },
-  bannerCompact: { minHeight: 84 },
+  bannerCompact: { minHeight: 104 },
   // Subdivisão da viagem: recuada e com uma linha de destaque à esquerda.
   accordionLevel: { marginLeft: Spacing.three, paddingLeft: Spacing.two, borderLeftWidth: 3, borderLeftColor: c.accent },
   bannerOverlay: {
@@ -384,6 +384,7 @@ const styles = StyleSheet.create({
   bannerOverlayLeading: { paddingTop: 68 },
   bannerLeading: { position: 'absolute', top: Spacing.two, left: Spacing.two },
   accordionBody: { gap: Spacing.two },
+  accordionHeaderLocation: { minHeight: 100 },
   accordionHeaderSub: { padding: Spacing.two, backgroundColor: c.backgroundElement, borderWidth: 1, borderColor: c.border },
   accordionBodySub: { paddingLeft: Spacing.two, borderLeftWidth: 2, borderLeftColor: c.accentSoft },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
