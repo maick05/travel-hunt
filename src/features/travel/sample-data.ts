@@ -67,6 +67,7 @@ export const sampleRows: Record<TableKey, SheetRows> = {
     ['USD', '$', 'Dólar', 'Fiduciária', 5.43],
     ['Smiles', ':)', 'Smiles', 'MIlha', 0.016],
   ],
+  valueReserves: [['ID', 'Data da Reserva', 'Plataforma', 'Ativo', 'Quantidade Ativo', 'Valor Reservado', 'Custo em Taxas', 'Cotação Usada', 'Moeda', 'Status']],
   locals: [
     ['Local', 'País', 'Localização Google', 'Banner'],
     ['Rio de Janeiro', 'Brasil', LINK.rioAirport, ''],

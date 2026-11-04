@@ -8,7 +8,7 @@ import { sampleRows } from './sample-data';
 import { schemas, type TableKey, type Tables } from './schema';
 
 // Abas que podem não existir: sem Locals não há agrupamento por cidade; sem Coordenadas vale o que o build resolveu.
-const OPTIONAL_TABS: TableKey[] = ['locals', 'coords'];
+const OPTIONAL_TABS: TableKey[] = ['locals', 'coords', 'valueReserves'];
 
 export async function loadTravelData(): Promise<Tables> {
   if (!USE_REMOTE && !isSheetsConfigured) return parseTables(sampleRows);

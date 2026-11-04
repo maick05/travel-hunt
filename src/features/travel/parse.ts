@@ -4,7 +4,7 @@ const EXCEL_EPOCH_OFFSET_DAYS = 25569;
 const DAY_MS = 86_400_000;
 
 // Colunas pré-preenchidas na planilha mesmo em linhas vazias.
-const FILLER_KEYS = new Set(['trip', 'code']);
+const FILLER_KEYS = new Set(['trip', 'code', 'id']);
 
 function toText(v: SheetCell): string {
   return v == null ? '' : String(v).trim();

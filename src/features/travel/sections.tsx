@@ -541,11 +541,12 @@ function FoodDays({ data, meals }: { data: TripData; meals: TripData['meals'] })
 const CATEGORY_COLORS = ['#4F8DF7', '#34C28A', '#F59E42', '#A678F0', '#F06A8A', '#3CC4D6'];
 const TONE_COLORS = { good: '#34C28A', warn: '#F59E42', neutral: '#8FA3BF' } as const;
 
-type MoneyView = 'charts' | 'bills' | 'cities';
+type MoneyView = 'charts' | 'bills' | 'cities' | 'reserves';
 const MONEY_VIEWS: { key: MoneyView; label: string; icon: IconName }[] = [
   { key: 'charts', label: 'Gráficos', icon: 'chart-pie' },
   { key: 'bills', label: 'Despesas', icon: 'format-list-bulleted' },
   { key: 'cities', label: 'Por local', icon: 'map-marker' },
+  { key: 'reserves', label: 'Reservas', icon: 'safe' },
 ];
 
 const BILL_TYPE_ICONS: Record<string, IconName> = {
@@ -574,7 +575,7 @@ export function MoneySection({ data }: { data: TripData }) {
   const [view, setView] = useState<MoneyView>('charts');
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  if (!data.bills.length) return <Empty />;
+  if (!data.bills.length && !data.valueReserves.length) return <Empty />;
 
   const converted = data.bills.map((b) => ({ bill: b, brl: billToBRL(b, data.currencies) }));
   const types = [...new Set(data.bills.map((bill) => bill.type))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
@@ -612,7 +613,7 @@ export function MoneySection({ data }: { data: TripData }) {
       </Card>
 
       <Tabs tabs={MONEY_VIEWS} value={view} onChange={setView} secondary />
-      {view !== 'charts' && (
+      {(view === 'bills' || view === 'cities') && (
         <View style={styles.filterRow}>
           <FilterSelect
             label="Tipo"
@@ -641,9 +642,61 @@ export function MoneySection({ data }: { data: TripData }) {
         filtered.length ? filtered.map(({ bill, brl }, index) => (
           <BillCard key={`${bill.reference}-${bill.description}-${index}`} bill={bill} brl={brl} currencies={data.currencies} />
         )) : <Empty>Nenhuma despesa encontrada.</Empty>
+      ) : view === 'reserves' ? (
+        <ValueReserves data={data} />
       ) : (
         <CityCosts data={{ ...data, bills: filtered.map(({ bill }) => bill) }} />
       )}
+    </View>
+  );
+}
+
+function ValueReserves({ data }: { data: TripData }) {
+  if (!data.valueReserves.length) return <Empty>Nenhuma reserva de valor cadastrada.</Empty>;
+
+  const assetKey = (asset: string) => asset.trim().toLocaleUpperCase('pt-BR');
+  const assets = new Map<string, typeof data.valueReserves>();
+  for (const reserve of data.valueReserves) {
+    const key = assetKey(reserve.asset);
+    assets.set(key, [...(assets.get(key) ?? []), reserve]);
+  }
+  const number = (value: number | null) => value === null ? undefined :
+    new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 20 }).format(value);
+
+  return (
+    <View style={styles.list}>
+      {[...assets.entries()].map(([key, reserves]) => {
+        const bills = key ? data.bills.filter((bill) => assetKey(bill.valueReserve) === key) : [];
+        return (
+          <View key={key} style={styles.list}>
+            <ThemedText type="smallBold">{reserves[0].asset || 'Sem ativo'}</ThemedText>
+            {reserves.map((reserve, index) => (
+              <Card key={`${reserve.id}-${index}`}>
+                <View style={styles.row}>
+                  <View style={styles.flex}>
+                    <ThemedText type="smallBold">{reserve.platform || 'Plataforma não informada'}</ThemedText>
+                    <Field label="Reserva" value={reserve.id || undefined} />
+                    <Field label="Data" value={reserve.date === null ? undefined : formatDate(reserve.date)} />
+                    <Field label="Quantidade do ativo" value={number(reserve.quantity)} />
+                    <Field label="Valor reservado" value={reserve.value === null ? undefined : `${reserve.currency} ${number(reserve.value)}`.trim()} />
+                    <Field label="Custo em taxas" value={reserve.fees === null ? undefined : `${reserve.currency} ${number(reserve.fees)}`.trim()} />
+                    <Field label="Cotação usada" value={number(reserve.usedRate)} />
+                  </View>
+                  {reserve.status ? <StatusBadge status={reserve.status} /> : null}
+                </View>
+              </Card>
+            ))}
+            {bills.length > 0 && (
+              <>
+                <ThemedText type="smallBold" themeColor="textSecondary">Despesas desta viagem</ThemedText>
+                {bills.map((bill, index) => (
+                  <BillCard key={`${bill.reference}-${bill.description}-${index}`} bill={bill} brl={billToBRL(bill, data.currencies)} currencies={data.currencies} />
+                ))}
+              </>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -746,6 +799,7 @@ function BillCard({ bill, brl, currencies, share = 1 }: { bill: Bill; brl: numbe
           </ThemedText>
           {share !== 1 ? <ThemedText type="small" themeColor="textSecondary">Parcela do voo neste local</ThemedText> : null}
           {note ? <ThemedText type="small" themeColor="textSecondary">{note}</ThemedText> : null}
+          <Field label="Reserva de valor" value={bill.valueReserve} />
           <FileLink url={bill.receipt} label="Comprovante" />
         </View>
         <StatusBadge status={bill.status} />
