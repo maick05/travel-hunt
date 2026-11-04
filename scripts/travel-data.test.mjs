@@ -15,6 +15,8 @@ const { schemas } = require('../src/features/travel/schema.ts');
 const { sampleRows } = require('../src/features/travel/sample-data.ts');
 const { hasReserveAsset } = require('../src/features/travel/reserves.ts');
 const { billToBRL } = require('../src/features/travel/format.ts');
+const { registerCoords } = require('../src/features/travel/places.ts');
+const { buildMap, itineraryActivities } = require('../src/features/travel/map-data.ts');
 
 test('despesas reconhecem referências e ativos múltiplos independentemente da ordem', () => {
   const bills = parseTable([
@@ -53,4 +55,26 @@ test('dados de exemplo mantêm vínculos e reservas separados dos totais', () =>
   assert.equal(tables.valueReserves[0].assetDescription, 'Ativo exemplo 1');
   const total = tables.bills.reduce((sum, item) => sum + (billToBRL(item, tables.currencies) ?? 0), 0);
   assert.ok(Math.abs(total - 5431.375) < 0.001);
+});
+
+test('ponto inicial permanece no mapa sem ocultar uma volta posterior', () => {
+  const data = parseTables(sampleRows);
+  const origin = 'https://maps.app.goo.gl/origem';
+  const destination = 'https://maps.app.goo.gl/destino';
+  registerCoords([
+    { link: origin, name: 'Torres', lat: -29.3, lng: -49.7 },
+    { link: destination, name: 'Tubarão', lat: -28.5, lng: -49 },
+  ]);
+  const template = data.activities[0];
+  data.activities = [
+    { ...template, title: 'Embarque', place: origin, category: 'Traslado', start: 1000 },
+    { ...template, title: 'Chegada', place: destination, category: 'Traslado', start: 2000 },
+    { ...template, title: 'Retorno', place: origin, category: 'Passeio', start: 3000 },
+  ];
+  data.flights = [];
+  data.transports = [{ ...data.transports[0], from: origin, to: destination, departure: 1000, arrival: 2000 }];
+  assert.deepEqual(itineraryActivities(data).map((activity) => activity.title), ['Chegada', 'Retorno']);
+  assert.ok(buildMap(data).points.some((point) => point.emoji === '🚩' && point.items.some((item) => item.title === 'Início da viagem')));
+  data.transports = [];
+  assert.equal(itineraryActivities(data).length, 3);
 });

@@ -46,6 +46,38 @@ export function legStyle(mode: string): { kind: LegKind; emoji: string } {
 
 const keyOf = (c: Coord) => `${c.lat.toFixed(3)},${c.lng.toFixed(3)}`;
 
+export function tripOrigin(data: TripData) {
+  const { resolve } = createPlaces(data.locals);
+  let origin: { coord: Coord; time: number | null } | null = null;
+  const consider = (place: string, time: number | null) => {
+    const coord = resolve(place)?.coord;
+    if (coord && (!origin || (time !== null && (origin.time === null || time < origin.time)))) {
+      origin = { coord, time };
+    }
+  };
+  for (const flight of data.flights) consider(flight.from, flight.departure);
+  for (const transport of data.transports) consider(transport.from, transport.departure);
+  for (const activity of data.activities) consider(activity.place, activity.start);
+  return origin as { coord: Coord; time: number | null } | null;
+}
+
+export function itineraryActivities(data: TripData) {
+  const origin = tripOrigin(data);
+  if (!origin || origin.time === null) return data.activities;
+  const { resolve } = createPlaces(data.locals);
+  const originKey = keyOf(origin.coord);
+  const isDeparture = [...data.transports, ...data.flights].some((item) => {
+    const coord = resolve(item.from)?.coord;
+    return item.departure === origin.time && coord && keyOf(coord) === originKey;
+  });
+  if (!isDeparture) return data.activities;
+  return data.activities.filter((activity) => {
+    const coord = resolve(activity.place)?.coord;
+    const category = norm(activity.category);
+    return !(activity.start === origin.time && coord && keyOf(coord) === originKey && (category === 'traslado' || category === 'transporte'));
+  });
+}
+
 export function buildMap(data: TripData) {
   const { resolve, cityOf } = createPlaces(data.locals);
   const points = new Map<string, MapPoint>();
@@ -168,19 +200,9 @@ export function buildMap(data: TripData) {
     }
   }
 
-  let origin: { coord: Coord; time: number | null } | null = null;
-  const considerOrigin = (place: string, time: number | null) => {
-    const coord = resolve(place)?.coord;
-    if (coord && (!origin || (time !== null && (origin.time === null || time < origin.time)))) {
-      origin = { coord, time };
-    }
-  };
-  for (const flight of data.flights) considerOrigin(flight.from, flight.departure);
-  for (const transport of data.transports) considerOrigin(transport.from, transport.departure);
-  for (const activity of data.activities) considerOrigin(activity.place, activity.start);
+  const origin = tripOrigin(data);
   if (origin) {
-    const start = origin as { coord: Coord; time: number | null };
-    addItem(start.coord, '🚩', PRIORITY.origin, { title: 'Início da viagem', time: formatDateTime(start.time) });
+    addItem(origin.coord, '🚩', PRIORITY.origin, { title: 'Início da viagem', time: formatDateTime(origin.time) });
   }
 
   return { points: [...points.values()], legs, missing };

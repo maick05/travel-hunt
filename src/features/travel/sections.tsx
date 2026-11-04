@@ -37,7 +37,7 @@ import {
   statusTone,
   toBRL,
 } from './format';
-import { buildMap } from './map-data';
+import { buildMap, itineraryActivities } from './map-data';
 import { createPlaces, placeLabel } from './places';
 import { assetKey, hasReserveAsset } from './reserves';
 import type { Bill, Currency, Flight } from './schema';
@@ -95,7 +95,8 @@ function ItineraryList({ data, onOpenTransport }: { data: TripData; onOpenTransp
   const { groups, bannerOf, countryOf, spentIn } = useMemo(() => {
     const { cityOf, bannerOf, countryOf } = createPlaces(data.locals);
     const byCity = new Map<string, typeof data.activities>();
-    for (const a of data.activities) {
+    const activities = itineraryActivities(data);
+    for (const a of activities) {
       const city = cityOf(a.place);
       byCity.set(city, [...(byCity.get(city) ?? []), a]);
     }
@@ -104,8 +105,9 @@ function ItineraryList({ data, onOpenTransport }: { data: TripData; onOpenTransp
     return { groups: [...byCity.entries()], bannerOf, countryOf, spentIn: (city: string) => totals.get(cityCostKey(city))?.totalBRL ?? 0 };
   }, [data]);
 
+  if (groups.length === 0) return <Empty>Nenhuma atividade no itinerário.</Empty>;
   if (groups.length === 1 && !groups[0][0]) {
-    return <DayList data={data} activities={data.activities} onOpenTransport={onOpenTransport} />;
+    return <DayList data={data} activities={groups[0][1]} onOpenTransport={onOpenTransport} />;
   }
 
   return (
@@ -614,7 +616,8 @@ export function MoneySection({ data }: { data: TripData }) {
     return [...totals.entries()].map(([label, value], i): ChartItem => ({ label, value, color: colorOf(label, i) }));
   };
 
-  const byCategory = group((b) => b.type, (_, i) => CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
+  const byType = group((b) => b.type, (_, i) => CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
+  const byCategory = group((b) => b.category || 'Sem categoria', (_, i) => CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
   const byStatus = group((b) => b.status || 'Sem status', (label) => TONE_COLORS[statusTone(label)]);
 
   return (
@@ -651,7 +654,8 @@ export function MoneySection({ data }: { data: TripData }) {
       )}
       {view === 'charts' ? (
         <>
-          <PieChart title="Despesas por tipo" items={byCategory} format={formatBRL} />
+          <PieChart title="Despesas por tipo" items={byType} format={formatBRL} />
+          <PieChart title="Despesas por categoria" items={byCategory} format={formatBRL} />
           <PieChart title="Despesas por status" items={byStatus} format={formatBRL} />
         </>
       ) : view === 'bills' ? (
