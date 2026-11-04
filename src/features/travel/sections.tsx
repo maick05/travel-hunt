@@ -1,4 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -39,6 +40,7 @@ import {
 } from './format';
 import { buildMap, itineraryActivities } from './map-data';
 import { createPlaces, placeLabel } from './places';
+import { CACHE_DURATION, getQuote, quoteRequest, reserveResult } from './quotes';
 import { assetKey, hasReserveAsset } from './reserves';
 import type { Bill, Currency, Flight } from './schema';
 import type { TripData } from './use-travel-data';
@@ -775,6 +777,7 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
               {reserve.value !== null ? (
                 <ThemedText type="smallBold">{reserveMoney(reserve.value, reserve.currency, data.currencies)}</ThemedText>
               ) : null}
+              <ReserveQuote reserve={reserve} currencies={data.currencies} />
               <View style={styles.metaRow}>
                 <TransportIconTip tip={[
                   reserve.id ? `Reserva: ${reserve.id}` : '',
@@ -812,6 +815,37 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
           ))}
         </>
       ) : <Empty>Nenhuma despesa vinculada a este ativo nesta viagem.</Empty>)}
+    </View>
+  );
+}
+
+function ReserveQuote({ reserve, currencies }: { reserve: TripData['valueReserves'][number]; currencies: Currency[] }) {
+  const request = quoteRequest(reserve, currencies);
+  const quote = useQuery({
+    queryKey: ['reserve-quote', request?.kind, request?.symbol, request?.currency],
+    queryFn: () => getQuote(request!),
+    enabled: request !== null,
+    retry: false,
+    staleTime: (query) => query.state.data ? Math.max(0, query.state.data.fetchedAt + CACHE_DURATION - query.state.dataUpdatedAt) : 0,
+    refetchInterval: (query) => query.state.data ? Math.max(1000, query.state.data.fetchedAt + CACHE_DURATION - Date.now()) : false,
+  });
+  if (!request) return <ThemedText type="small" themeColor="textSecondary">Cotação não disponível para este ativo</ThemedText>;
+  if (quote.isPending) return <ThemedText type="small" themeColor="textSecondary">Consultando cotação...</ThemedText>;
+  if (quote.isError || !quote.data) return <ThemedText type="small" themeColor="textSecondary">Não foi possível consultar a cotação</ThemedText>;
+  const result = reserveResult(reserve, quote.data);
+  const price = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(quote.data.price);
+  const time = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(quote.data.marketTime);
+  return (
+    <View>
+      <ThemedText type="small" themeColor="textSecondary">Cotação: {reserve.currency} {price} · {time}</ThemedText>
+      {result ? (
+        <>
+          <ThemedText type="small">Valor atual: {reserveMoney(result.current, reserve.currency, [])}</ThemedText>
+          <ThemedText type="smallBold" style={{ color: result.difference < 0 ? '#B42318' : '#167044' }}>
+            {result.difference < 0 ? 'Prejuízo' : 'Lucro'}: {reserveMoney(Math.abs(result.difference), reserve.currency, [])}
+          </ThemedText>
+        </>
+      ) : <ThemedText type="small" themeColor="textSecondary">Resultado indisponível: quantidade ou valor não informado</ThemedText>}
     </View>
   );
 }

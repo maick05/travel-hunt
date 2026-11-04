@@ -23,6 +23,12 @@ In the output, you'll find options to open the app in a
 - [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
 - [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
+## Cotações das reservas
+
+As reservas consultam moedas e criptomoedas pela [AwesomeAPI](https://docs.awesomeapi.com.br/api-de-moedas) e códigos de ativos da B3 em reais pela [brapi](https://brapi.dev/docs/acoes/cotacao). Cadastre a sigla da moeda na aba Currency com o tipo `Fiduciária` ou `Criptomoeda`, ou informe `Moeda` ou `Criptomoeda` no tipo da reserva. Na brapi, sem chave, somente PETR4, MGLU3, VALE3 e ITUB4 estão disponíveis para teste; os demais exigem uma integração autenticada no servidor. Não coloque chaves no aplicativo cliente.
+
+A cotação é guardada no armazenamento do dispositivo por 12 horas. O resultado estimado é a quantidade multiplicada pela última cotação, menos o valor reservado; caso este não esteja informado, usa-se quantidade vezes cotação usada. Os valores são comparados na moeda da reserva, sem estimar taxas futuras, impostos ou movimentações posteriores. A data exibida é a data da cotação informada pela fonte, que pode ser anterior ao dia atual quando o mercado estiver fechado.
+
 You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
 ## Get a fresh project

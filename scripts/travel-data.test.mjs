@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import Module, { createRequire } from 'node:module';
 import test from 'node:test';
 
 const require = createRequire(import.meta.url);
@@ -18,6 +18,18 @@ const { billToBRL } = require('../src/features/travel/format.ts');
 const { mealCostsByType } = require('../src/features/travel/costs.ts');
 const { registerCoords } = require('../src/features/travel/places.ts');
 const { buildMap, itineraryActivities } = require('../src/features/travel/map-data.ts');
+const quoteStorage = new Map();
+const storage = {
+  getItem: async (key) => quoteStorage.get(key) ?? null,
+  setItem: async (key, value) => quoteStorage.set(key, value),
+};
+const originalLoad = Module._load;
+Module._load = function (id, ...args) {
+  if (id === '@react-native-async-storage/async-storage') return { __esModule: true, default: storage };
+  return originalLoad.call(this, id, ...args);
+};
+const { CACHE_DURATION, getQuote, quoteRequest, reserveResult } = require('../src/features/travel/quotes.ts');
+Module._load = originalLoad;
 
 test('despesas reconhecem referências e ativos múltiplos independentemente da ordem', () => {
   const bills = parseTable([
@@ -89,4 +101,50 @@ test('despesas de comida são agrupadas pelo tipo de refeição sem duplicar ref
   assert.ok(Math.abs(totals.get('Almoço') - billToBRL(mealBill, data.currencies)) < 0.001);
   assert.equal(totals.get('Sem refeição vinculada'), 10);
   assert.equal(totals.size, 2);
+});
+
+test('resultado de reserva compara valores na mesma moeda e exige dados suficientes', () => {
+  const data = parseTables(sampleRows);
+  const reserve = { ...data.valueReserves[0], asset: 'EUR', quantity: 10, value: 60, usedRate: 6, currency: 'R$' };
+  assert.deepEqual(quoteRequest(reserve, data.currencies), { kind: 'currency', symbol: 'EUR', currency: 'BRL' });
+  const quote = { price: 7, currency: 'BRL', marketTime: 1, fetchedAt: 1 };
+  assert.deepEqual(reserveResult(reserve, quote), { current: 70, difference: 10 });
+  assert.deepEqual(reserveResult({ ...reserve, value: null, usedRate: 8 }, quote), { current: 70, difference: -10 });
+  assert.equal(reserveResult({ ...reserve, quantity: null }, quote), null);
+  assert.equal(reserveResult({ ...reserve, value: null, usedRate: null }, quote), null);
+  assert.equal(reserveResult({ ...reserve, currency: 'USD' }, quote), null);
+  assert.deepEqual(quoteRequest({ ...reserve, asset: 'PETR4' }, data.currencies), { kind: 'stock', symbol: 'PETR4', currency: 'BRL' });
+  assert.equal(quoteRequest({ ...reserve, asset: 'PETR4', currency: 'USD' }, data.currencies), null);
+  assert.equal(quoteRequest({ ...reserve, asset: 'ATIVO1' }, data.currencies), null);
+});
+
+test('cache de cotação dura 12 horas e não armazena respostas inválidas', async () => {
+  quoteStorage.clear();
+  const originalFetch = globalThis.fetch;
+  const originalNow = Date.now;
+  let now = 1700000000000;
+  let calls = 0;
+  Date.now = () => now;
+  globalThis.fetch = async () => {
+    calls++;
+    return { ok: true, json: async () => ({ EURBRL: { code: 'EUR', codein: 'BRL', bid: '6.5', timestamp: '1699999000' } }) };
+  };
+  try {
+    const request = { kind: 'currency', symbol: 'EUR', currency: 'BRL' };
+    const first = await getQuote(request);
+    assert.equal(first.price, 6.5);
+    now += CACHE_DURATION - 1;
+    assert.deepEqual(await getQuote(request), first);
+    assert.equal(calls, 1);
+    now++;
+    assert.equal((await getQuote(request)).fetchedAt, now);
+    assert.equal(calls, 2);
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ USDBRL: { code: 'USD', codein: 'BRL', bid: '0', timestamp: '1699999000' } }) });
+    await assert.rejects(getQuote({ kind: 'currency', symbol: 'USD', currency: 'BRL' }));
+    assert.equal(quoteStorage.size, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    Date.now = originalNow;
+    quoteStorage.clear();
+  }
 });
