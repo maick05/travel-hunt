@@ -17,8 +17,8 @@ export const sampleRows: Record<TableKey, SheetRows> = {
     [TRIP, 46600, 46612],
   ],
   activities: [
-    ['Cod. Atividade', 'Início', 'Fim', 'Atividade', 'Local', 'Categoria', 'Meio de Transporte', 'Ref. Transporte', 'Observações', 'Viagem'],
-    [1, 46600.895833333336, 46600.916666666664, 'Desembarque no aeroporto', LINK.lisAirport, 'Aeroporto', 'Avião', '', '', TRIP],
+    ['Cod. Atividade', 'Início', 'Fim', 'Atividade', 'Local', 'Categoria', 'Meio de Transporte', 'Ref. Transporte', 'Observações', 'Viagem', 'Reservado (Ticket/Valor)', 'Data Reserva Possível', 'Motivo Aguardo da Reserva'],
+    [1, 46600.895833333336, 46600.916666666664, 'Desembarque no aeroporto', LINK.lisAirport, 'Aeroporto', 'Avião', '', '', TRIP, false, 46447, 'Aguardando disponibilidade'],
     [2, 46600.916666666664, 46600.916666666664, 'Check-in no hotel', LINK.hotel, 'Hotel', 'Automóvel', 'Transfer Aeroporto-Hotel', '', TRIP],
     [3, 46601.375, 46601.458333333336, 'Museu', LINK.museum, 'Passeio', 'A pé', '', '', TRIP],
     [4, 46601.479166666664, 46601.5, 'Almoço no centro histórico', LINK.center, 'Gastronomia', 'A pé', '', '', TRIP],
@@ -26,7 +26,7 @@ export const sampleRows: Record<TableKey, SheetRows> = {
     [6, 46601.541666666664, 46601.649305555555, 'Check-in no aeroporto', LINK.lisAirport, 'Aeroporto', 'Automóvel', 'Uber Hotel-Aeroporto', '', TRIP],
   ],
   bills: [
-    ['Tipo', 'Referência', 'Data Reserva', 'Data Pagamento', 'Descrição do item', 'Moeda', 'Valor', 'Meio de Pagamento', 'Status', 'Pessoa', 'Viagem'],
+    ['Tipo', 'Ref.', 'Data Reserva', 'Data Pagamento', 'Descrição do item', 'Moeda', 'Valor', 'Meio de Pagamento', 'Status', 'Pessoa', 'Viagem', 'Reserva de Valor'],
     ['Vôo', 100200300, 46321, '', 'Milhas (Ana)', 'Smiles', 120000, 'Milhas', 'Reservado', 'Ana', TRIP],
     ['Vôo', 100200300, 46321, 46321, 'Taxa de embarque (Ana)', 'R$', 104, 'Cartão de crédito', 'Pago', 'Ana', TRIP],
     ['Vôo', 100200300, '', '', 'Milhas (Bruno)', 'Smiles', 120000, 'Milhas', 'Pendente', 'Bruno', TRIP],
@@ -35,7 +35,7 @@ export const sampleRows: Record<TableKey, SheetRows> = {
     ['Transporte', 1, '', '', 'Transfer aeroporto -> hotel', 'EUR', 20, '', 'Pendente', 'Ana, Bruno', TRIP],
     ['Atividade', 3, '', '', 'Museu (Ana)', 'EUR', 8, '', 'Pendente', 'Ana', TRIP],
     ['Atividade', 3, '', '', 'Museu (Bruno)', 'EUR', 12, '', 'Pendente', 'Bruno', TRIP],
-    ['Transporte', 2, '', '', 'Uber', 'EUR', 25, '', 'Pendente', 'Ana, Bruno', TRIP],
+    ['Transporte', 2, '', '', 'Uber', 'EUR', 25, '', 'Pendente', 'Ana, Bruno', TRIP, 'ATIVO1, ATIVO2'],
     ['Comida', 3, '', '', 'Almoço', 'EUR', 30, '', 'Pendente', 'Ana, Bruno', TRIP],
   ],
   flights: [
@@ -67,7 +67,11 @@ export const sampleRows: Record<TableKey, SheetRows> = {
     ['USD', '$', 'Dólar', 'Fiduciária', 5.43],
     ['Smiles', ':)', 'Smiles', 'MIlha', 0.016],
   ],
-  valueReserves: [['ID', 'Data da Reserva', 'Plataforma', 'Ativo', 'Quantidade Ativo', 'Valor Reservado', 'Custo em Taxas', 'Cotação Usada', 'Moeda', 'Status']],
+  valueReserves: [
+    ['ID', 'Data da Reserva', 'Plataforma', 'Tipo', 'Ativo', 'Ativo Desc.', 'Quantidade Ativo', 'Valor Reservado', 'Custo em Taxas', 'Cotação Usada', 'Moeda', 'Status'],
+    [1, 46329, 'Plataforma Exemplo', 'Investimento', 'ATIVO1', 'Ativo exemplo 1', 1, 100, 0, 100, 'R$', 'Reservado'],
+    [2, 46329, 'Plataforma Exemplo', 'Investimento', 'ATIVO2', 'Ativo exemplo 2', 2, 50, 0, 25, 'R$', 'Reservado'],
+  ],
   locals: [
     ['Local', 'País', 'Localização Google', 'Banner'],
     ['Rio de Janeiro', 'Brasil', LINK.rioAirport, ''],

@@ -39,6 +39,7 @@ import {
 } from './format';
 import { buildMap } from './map-data';
 import { createPlaces, placeLabel } from './places';
+import { assetKey, hasReserveAsset } from './reserves';
 import type { Bill, Currency, Flight } from './schema';
 import type { TripData } from './use-travel-data';
 
@@ -240,6 +241,9 @@ function DayList({
                   </View>
                   <PlaceLink place={a.place} />
                   <Field label="Obs." value={a.notes} />
+                  <Field label="Reservado (ticket/valor)" value={a.reserved === null ? undefined : a.reserved ? 'Sim' : 'Não'} />
+                  <Field label="Reserva possível em" value={a.reservationAvailableDate === null ? undefined : formatDate(a.reservationAvailableDate)} />
+                  <Field label="Motivo da espera" value={a.reservationWaitReason} />
                   <FileLink url={a.voucher} />
                   <ActivityCost data={data} code={a.code} />
                 </View>
@@ -572,7 +576,6 @@ function billIcon(value: string | null, kind: 'type' | 'category'): IconName {
   return (kind === 'type' ? BILL_TYPE_ICONS : BILL_CATEGORY_ICONS)[normalized] ?? (kind === 'type' ? 'shape-outline' : 'tag-outline');
 }
 
-const assetKey = (asset: string) => asset.trim().toLocaleUpperCase('pt-BR');
 const reserveNumber = (value: number | null) => value === null ? undefined :
   new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 20 }).format(value);
 
@@ -675,7 +678,7 @@ function ValueReserves({ data }: { data: TripData }) {
   return (
     <View style={styles.list}>
       {[...assets.entries()].map(([key, reserves]) => {
-        const bills = key ? data.bills.filter((bill) => assetKey(bill.valueReserve) === key) : [];
+        const bills = key ? data.bills.filter((bill) => hasReserveAsset(bill.valueReserve, key)) : [];
         return <ReserveGroup key={key} reserves={reserves} bills={bills} data={data} />;
       })}
     </View>
@@ -717,6 +720,8 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
               <ThemedText type="smallBold">{reserve.platform || 'Plataforma não informada'}</ThemedText>
               <Field label="Reserva" value={reserve.id || undefined} />
               <Field label="Data" value={reserve.date === null ? undefined : formatDate(reserve.date)} />
+              <Field label="Tipo" value={reserve.type} />
+              <Field label="Ativo" value={reserve.assetDescription} />
               <Field label="Quantidade do ativo" value={reserveNumber(reserve.quantity)} />
               <Field label="Valor reservado" value={reserveMoney(reserve.value, reserve.currency, data.currencies)} />
               <Field label="Custo em taxas" value={reserveMoney(reserve.fees, reserve.currency, data.currencies)} />
@@ -816,10 +821,12 @@ function CityCosts({ data }: { data: TripData }) {
 function BillCard({ bill, brl, currencies, reserves, share = 1 }: { bill: Bill; brl: number | null; currencies: Currency[]; reserves: TripData['valueReserves']; share?: number }) {
   const currency = currencies.find((item) => item.symbol === bill.currency);
   const note = rateNote(bill) || feesNote(bill, currencies);
-  const matches = bill.valueReserve ? reserves.filter((reserve) => assetKey(reserve.asset) === assetKey(bill.valueReserve)) : [];
-  const reserveTip = matches.length ? matches.map((reserve) =>
-    `${reserve.platform || reserve.asset}${reserve.id ? ` #${reserve.id}` : ''}: ${reserveMoney(reserve.value, reserve.currency, currencies) ?? 'valor não informado'}`,
-  ).join('\n') : 'Reserva não encontrada';
+  const reserveTip = bill.valueReserve.map((asset) => {
+    const matches = reserves.filter((reserve) => hasReserveAsset([asset], reserve.asset));
+    return matches.length ? matches.map((reserve) =>
+      `${asset} · ${reserve.platform || 'Plataforma não informada'}${reserve.id ? ` #${reserve.id}` : ''}: ${reserveMoney(reserve.value, reserve.currency, currencies) ?? 'valor não informado'}`,
+    ).join('\n') : `${asset}: reserva não encontrada`;
+  }).join('\n');
   return (
     <Card>
       <View style={styles.row}>
@@ -840,9 +847,11 @@ function BillCard({ bill, brl, currencies, reserves, share = 1 }: { bill: Bill; 
           </ThemedText>
           {share !== 1 ? <ThemedText type="small" themeColor="textSecondary">Parcela do voo neste local</ThemedText> : null}
           {note ? <ThemedText type="small" themeColor="textSecondary">{note}</ThemedText> : null}
-          {bill.valueReserve ? (
+          {bill.valueReserve.length ? (
             <View style={styles.reserveIndicator}>
-              <Field label="Reserva de valor" value={bill.valueReserve} />
+              <View style={styles.reserveIndicatorText}>
+                <Field label="Reserva de valor" value={bill.valueReserve.join(', ')} />
+              </View>
               <TransportIconTip tip={reserveTip}>
                 <MaterialCommunityIcons name="information-outline" size={18} color={Colors.light.accent} />
               </TransportIconTip>
@@ -870,6 +879,7 @@ const styles = StyleSheet.create({
   reserveHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   reserveTooltipWrap: { position: 'absolute', bottom: '100%', right: 0, width: 220, alignItems: 'flex-end', marginBottom: Spacing.one },
   reserveIndicator: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  reserveIndicatorText: { flexShrink: 1, minWidth: 0 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   flex: { flex: 1, gap: Spacing.half },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },

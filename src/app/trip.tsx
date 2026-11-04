@@ -10,13 +10,14 @@ import { ThemedText } from '@/components/themed-text';
 import { BannerCard, Empty, Tabs } from '@/components/ui';
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { billToBRL, countdownLabel, formatBRL, formatDate } from '@/features/travel/format';
+import { bannerSource } from '@/features/travel/places';
 import {
-  FlightsSection,
-  FoodSection,
-  HotelsSection,
-  ItinerarySection,
-  MoneySection,
-  TransportSection,
+    FlightsSection,
+    FoodSection,
+    HotelsSection,
+    ItinerarySection,
+    MoneySection,
+    TransportSection,
 } from '@/features/travel/sections';
 import { tripBanner } from '@/features/travel/trip-banners';
 import { selectTrip, useTravelData } from '@/features/travel/use-travel-data';
@@ -68,9 +69,9 @@ export default function TripScreen() {
           <Empty>Viagem não encontrada.</Empty>
         ) : (
           <>
-            {tripBanner(travel.name) ? (
+            {(bannerSource(travel.banner) ?? tripBanner(travel.name)) ? (
               <BannerCard
-                source={tripBanner(travel.name)}
+                source={bannerSource(travel.banner) ?? tripBanner(travel.name)}
                 title={travel.name}
                 leading={<TripBackButton />}
                 subtitle={`${formatDate(travel.startDate)} → ${formatDate(travel.endDate)}\n${countdownLabel(travel.startDate, travel.endDate)} · Total estimado: ${formatBRL(totalBRL)}`}

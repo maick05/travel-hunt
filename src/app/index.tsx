@@ -7,6 +7,7 @@ import { BannerCard, Card, Empty, IconBubble } from '@/components/ui';
 import { isSheetsConfigured } from '@/config/env';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { countdownLabel, formatDate } from '@/features/travel/format';
+import { bannerSource } from '@/features/travel/places';
 import { tripBanner } from '@/features/travel/trip-banners';
 import { useTravelData } from '@/features/travel/use-travel-data';
 import { USE_REMOTE } from '@/services/remote';
@@ -40,9 +41,9 @@ export default function TripsScreen() {
             {data.travels.map((t) => (
               <Link key={t.name} href={{ pathname: '/trip', params: { name: t.name } }} asChild>
                 <Pressable style={({ pressed }) => pressed && styles.pressed}>
-                  {tripBanner(t.name) ? (
+                  {(bannerSource(t.banner) ?? tripBanner(t.name)) ? (
                     <BannerCard
-                      source={tripBanner(t.name)}
+                      source={bannerSource(t.banner) ?? tripBanner(t.name)}
                       title={t.name}
                       subtitle={`${formatDate(t.startDate)} → ${formatDate(t.endDate)} · ${countdownLabel(t.startDate, t.endDate)}`}
                     />

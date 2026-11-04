@@ -1,12 +1,14 @@
 export type SheetCell = string | number | boolean | null | undefined;
 export type SheetRows = SheetCell[][];
 
-type FieldType = 'text' | 'number' | 'date';
-type Field<T extends FieldType = FieldType> = { header: string; type: T; occurrence?: number };
+type FieldType = 'text' | 'number' | 'date' | 'boolean' | 'list';
+type Field<T extends FieldType = FieldType> = { header: string; type: T; occurrence?: number; aliases?: string[] };
 
-const text = (header: string, occurrence?: number): Field<'text'> => ({ header, type: 'text', occurrence });
+const text = (header: string, occurrence?: number, aliases?: string[]): Field<'text'> => ({ header, type: 'text', occurrence, aliases });
 const number = (header: string): Field<'number'> => ({ header, type: 'number' });
 const date = (header: string): Field<'date'> => ({ header, type: 'date' });
+const boolean = (header: string): Field<'boolean'> => ({ header, type: 'boolean' });
+const list = (header: string): Field<'list'> => ({ header, type: 'list' });
 
 export type FieldSpec = Record<string, Field>;
 
@@ -14,7 +16,7 @@ export type FieldSpec = Record<string, Field>;
 export type DateValue = number | null;
 
 export type Row<S extends FieldSpec> = {
-  [K in keyof S]: S[K] extends Field<'text'> ? string : S[K] extends Field<'number'> ? number | null : DateValue;
+  [K in keyof S]: S[K] extends Field<'text'> ? string : S[K] extends Field<'list'> ? string[] : S[K] extends Field<'boolean'> ? boolean | null : number | null;
 };
 
 // `tab` é o prefixo do título da aba (o título real tem emoji). Os headers são os da planilha.
@@ -25,6 +27,7 @@ export const schemas = {
       name: text('Nome'),
       startDate: date('Data Inicial'),
       endDate: date('Data Final'),
+      banner: text('Banner'),
     },
   },
   activities: {
@@ -38,6 +41,9 @@ export const schemas = {
       category: text('Categoria'),
       transportMode: text('Meio de Transporte'),
       transportRef: text('Ref. Transporte'),
+      reserved: boolean('Reservado (Ticket/Valor)'),
+      reservationAvailableDate: date('Data Reserva Possível'),
+      reservationWaitReason: text('Motivo Aguardo da Reserva'),
       notes: text('Observações'),
       voucher: text('Reserva'),
       trip: text('Viagem'),
@@ -47,7 +53,7 @@ export const schemas = {
     tab: 'Money',
     fields: {
       type: text('Tipo'),
-      reference: text('Referência'),
+      reference: text('Ref.', undefined, ['Referência']),
       category: text('Categoria'),
       bookingDate: date('Data Reserva'),
       paymentDate: date('Data Pagamento'),
@@ -59,7 +65,7 @@ export const schemas = {
       person: text('Pessoa'),
       usedRate: number('Cotação Utilizada'),
       receipt: text('Comprovantes'),
-      valueReserve: text('Reserva de Valor'),
+      valueReserve: list('Reserva de Valor'),
       trip: text('Viagem'),
     },
   },
@@ -144,7 +150,9 @@ export const schemas = {
       id: text('ID'),
       date: date('Data da Reserva'),
       platform: text('Plataforma'),
+      type: text('Tipo'),
       asset: text('Ativo'),
+      assetDescription: text('Ativo Desc.'),
       quantity: number('Quantidade Ativo'),
       value: number('Valor Reservado'),
       fees: number('Custo em Taxas'),
@@ -158,6 +166,7 @@ export const schemas = {
     tab: 'Locals',
     fields: {
       name: text('Local'),
+      state: text('Estado'),
       country: text('País'),
       link: text('Localização Google'),
       banner: text('Banner'),
