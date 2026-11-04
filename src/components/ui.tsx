@@ -12,14 +12,14 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import type { Cost } from '@/features/travel/costs';
 import {
-  billToBRL,
-  feesNote,
-  formatAmount,
-  formatBRL,
-  mapsUrl,
-  rateNote,
-  statusTone,
-  type StatusTone,
+    billToBRL,
+    feesNote,
+    formatAmount,
+    formatBRL,
+    mapsUrl,
+    rateNote,
+    statusTone,
+    type StatusTone,
 } from '@/features/travel/format';
 import { bannerSource, isLink, placeLabel } from '@/features/travel/places';
 import type { Currency } from '@/features/travel/schema';
@@ -49,9 +49,9 @@ function CountryFlag({ country }: { country?: string }) {
 }
 
 export function Card({ children, onPress }: { children: React.ReactNode; onPress?: () => void }) {
+  if (!onPress) return <View style={styles.card}>{children}</View>;
   return (
     <Pressable
-      disabled={!onPress}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       {children}
