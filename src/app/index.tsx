@@ -9,11 +9,11 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { countdownLabel, formatDate } from '@/features/travel/format';
 import { bannerSource } from '@/features/travel/places';
 import { tripBanner } from '@/features/travel/trip-banners';
-import { useTravelData } from '@/features/travel/use-travel-data';
+import { useTravels } from '@/features/travel/use-travel-data';
 import { USE_REMOTE } from '@/services/remote';
 
 export default function TripsScreen() {
-  const { data, isLoading, error, refetch } = useTravelData();
+  const { data, isLoading, error, refetch } = useTravels();
 
   return (
     <ScreenBackground>

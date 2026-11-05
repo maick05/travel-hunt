@@ -44,7 +44,7 @@ export const schemas = {
       reserved: boolean('Reservado (Ticket/Valor)'),
       reservationAvailableDate: date('Data Reserva Possível'),
       reservationWaitReason: text('Motivo Aguardo da Reserva'),
-      notes: text('Observações'),
+      notes: text('Observações', undefined, ['Obs']),
       voucher: text('Reserva'),
       trip: text('Viagem'),
     },

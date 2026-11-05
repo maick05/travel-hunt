@@ -13,11 +13,14 @@ type Tabs = Record<string, SheetRows>;
 
 // Só o hash MD5 da senha circula e fica guardado; a senha digitada não é armazenada.
 let hash: string | null = null;
-let prefetched: Tabs | null = null;
+let prefetched: { tabs: Tabs; fetchedAt: number } | null = null;
 
-async function request(senhaMd5: string): Promise<Tabs> {
+async function request(senhaMd5: string, endpoint: 'viagens' | 'viagem', viagem?: string): Promise<Tabs> {
   // text/plain evita o preflight de CORS, que o Apps Script não responde.
-  const res = await fetch(SCRIPT_URL, {
+  const url = new URL(SCRIPT_URL);
+  url.searchParams.set('endpoint', endpoint);
+  if (viagem) url.searchParams.set('viagem', viagem);
+  const res = await fetch(url.toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ senha: senhaMd5 }),
@@ -31,7 +34,7 @@ async function request(senhaMd5: string): Promise<Tabs> {
 }
 
 async function open(senhaMd5: string): Promise<void> {
-  prefetched = await request(senhaMd5);
+  prefetched = { tabs: await request(senhaMd5, 'viagens'), fetchedAt: Date.now() };
   hash = senhaMd5;
   localStorage.setItem(STORAGE_KEY, senhaMd5);
 }
@@ -66,16 +69,22 @@ export async function unlockStored(): Promise<boolean> {
   return true;
 }
 
-/** Dados atuais da planilha; a primeira chamada após digitar a senha reaproveita a resposta que a validou. */
-export async function fetchRemoteTabs(): Promise<Tabs> {
+export function remoteCacheScope(): string {
   if (!hash) throw new Error('Dados bloqueados.');
-  if (prefetched) {
-    const tabs = prefetched;
+  return md5(`${SCRIPT_URL}:${hash}`);
+}
+
+export async function fetchRemoteTabs(endpoint: 'viagens' | 'viagem', viagem?: string): Promise<{ tabs: Tabs; fetchedAt: number }> {
+  if (!hash) throw new Error('Dados bloqueados.');
+  if (endpoint === 'viagem' && !viagem?.trim()) throw new Error('Informe a viagem.');
+  if (endpoint === 'viagens' && prefetched) {
+    const cached = prefetched;
     prefetched = null;
-    return tabs;
+    if (Date.now() >= cached.fetchedAt && Date.now() - cached.fetchedAt < 24 * 60 * 60 * 1000) return cached;
   }
   try {
-    return await request(hash);
+    const tabs = await request(hash, endpoint, viagem);
+    return { tabs, fetchedAt: Date.now() };
   } catch (e) {
     // A senha mudou no servidor: esquece o hash e volta para a tela de senha.
     if ((e as Error).message === WRONG_PASSWORD) {

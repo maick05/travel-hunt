@@ -31,6 +31,29 @@ Module._load = function (id, ...args) {
 const { CACHE_DURATION, getQuote, quoteRequest, reserveResult } = require('../src/features/travel/quotes.ts');
 Module._load = originalLoad;
 
+const travelStorage = new Map();
+let scope = 'source-a';
+let travelCalls = [];
+Module._load = function (id, ...args) {
+  if (id === '@react-native-async-storage/async-storage') return { __esModule: true, default: {
+    getItem: async (key) => travelStorage.get(key) ?? null,
+    setItem: async (key, value) => travelStorage.set(key, value),
+  } };
+  if (id === '@/config/env') return { env: {}, isSheetsConfigured: false };
+  if (id === '@/services/remote') return {
+    USE_REMOTE: true,
+    remoteCacheScope: () => scope,
+    fetchRemoteTabs: async (endpoint, trip) => {
+      travelCalls.push([endpoint, trip]);
+      return { tabs: { 'Travels 🧳': [['Nome'], ['Viagem A']] }, fetchedAt: Date.now() };
+    },
+  };
+  if (id === '@/services/sheets/client') return { pickTabs: (tabs) => [tabs['Travels 🧳']] };
+  return originalLoad.call(this, id, ...args);
+};
+const { loadTravels, loadTravelData, TRAVEL_CACHE_DURATION } = require('../src/features/travel/repository.ts');
+Module._load = originalLoad;
+
 test('despesas reconhecem referências e ativos múltiplos independentemente da ordem', () => {
   const bills = parseTable([
     ['Viagem', 'Reserva de Valor', 'Ref.', 'Descrição do item'],
@@ -146,5 +169,74 @@ test('cache de cotação dura 12 horas e não armazena respostas inválidas', as
     globalThis.fetch = originalFetch;
     Date.now = originalNow;
     quoteStorage.clear();
+  }
+});
+
+test('atividades aceitam o cabeçalho Obs da planilha', () => {
+  const rows = [['Atividade', 'Viagem', 'Obs'], ['Passeio', 'Viagem A', 'Chegar cedo']];
+  assert.equal(parseTable(rows, schemas.activities.fields)[0].notes, 'Chegar cedo');
+});
+
+test('lista usa cache isolado por origem por exatamente 24 horas', async () => {
+  travelStorage.clear();
+  travelCalls = [];
+  scope = 'source-a';
+  const originalNow = Date.now;
+  let now = 1700000000000;
+  Date.now = () => now;
+  try {
+    const first = await loadTravels();
+    assert.equal(first.travels[0].name, 'Viagem A');
+    now += TRAVEL_CACHE_DURATION - 1;
+    assert.deepEqual(await loadTravels(), first);
+    assert.equal(travelCalls.length, 1);
+    scope = 'source-b';
+    await loadTravels();
+    assert.equal(travelCalls.length, 2);
+    scope = 'source-a';
+    now++;
+    assert.equal((await loadTravels()).fetchedAt, now);
+    assert.equal(travelCalls.length, 3);
+    travelStorage.set('travel-hunt:travels:v1:source-a', '{');
+    await loadTravels();
+    assert.equal(travelCalls.length, 4);
+    await assert.rejects(loadTravelData('  '), /Informe a viagem/);
+    assert.equal(travelCalls.length, 4);
+  } finally {
+    Date.now = originalNow;
+    travelStorage.clear();
+  }
+});
+
+test('cliente remoto usa rotas distintas e codifica a viagem', async () => {
+  const originalUrl = process.env.EXPO_PUBLIC_SCRIPT_URL;
+  const originalFetch = globalThis.fetch;
+  const originalStorage = globalThis.localStorage;
+  const requests = [];
+  process.env.EXPO_PUBLIC_SCRIPT_URL = 'https://example.test/exec';
+  globalThis.localStorage = { setItem: () => {}, getItem: () => null, removeItem: () => {} };
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url: new URL(url), options });
+    return { ok: true, json: async () => ({ abas: { 'Travels 🧳': [['Nome'], ['São Paulo & Rio']] } }) };
+  };
+  try {
+    const remote = require('../src/services/remote.ts');
+    await remote.unlock('senha de teste');
+    assert.equal(requests[0].url.searchParams.get('endpoint'), 'viagens');
+    assert.equal(requests[0].url.searchParams.has('senha'), false);
+    const first = await remote.fetchRemoteTabs('viagens');
+    assert.equal(first.tabs['Travels 🧳'][1][0], 'São Paulo & Rio');
+    assert.equal(requests.length, 1);
+    await assert.rejects(remote.fetchRemoteTabs('viagem', ' '), /Informe a viagem/);
+    await remote.fetchRemoteTabs('viagem', 'São Paulo & Rio');
+    assert.equal(requests[1].url.searchParams.get('endpoint'), 'viagem');
+    assert.equal(requests[1].url.searchParams.get('viagem'), 'São Paulo & Rio');
+    assert.equal(requests[1].options.headers['Content-Type'], 'text/plain;charset=utf-8');
+    assert.match(JSON.parse(requests[1].options.body).senha, /^[a-f0-9]{32}$/);
+  } finally {
+    if (originalUrl === undefined) delete process.env.EXPO_PUBLIC_SCRIPT_URL;
+    else process.env.EXPO_PUBLIC_SCRIPT_URL = originalUrl;
+    globalThis.fetch = originalFetch;
+    globalThis.localStorage = originalStorage;
   }
 });

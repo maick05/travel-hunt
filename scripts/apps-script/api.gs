@@ -1,6 +1,6 @@
 // Cole no mesmo projeto do Apps Script (Extensões > Apps Script), em um arquivo separado.
 // Publica a planilha como Web App protegido por senha: o site pede os dados aqui, sem chave de API.
-// A chamada é POST <url>/exec com corpo {"senha": "<MD5 da senha em hexadecimal minúsculo>"}.
+// POST <url>/exec?endpoint=viagens ou ?endpoint=viagem&viagem=<nome>, com corpo {"senha": "<MD5 da senha>"}.
 //
 // Passos: 1) Configurações do projeto > Propriedades do script > adicione SENHA com uma frase longa.
 // 2) Implantar > Nova implantação > Tipo "App da Web" > Executar como "Eu" > Acesso "Qualquer pessoa".
@@ -27,7 +27,11 @@ function doPost(e) {
     Utilities.sleep(2000); // dificulta tentativas em série
     return resposta({ erro: 'senha' });
   }
-  return resposta({ atualizadoEm: new Date().toISOString(), abas: lerAbas() });
+  const endpoint = e.parameter && e.parameter.endpoint;
+  const viagem = String((e.parameter && e.parameter.viagem) || '').trim();
+  if (endpoint !== 'viagens' && endpoint !== 'viagem') return resposta({ erro: 'Endpoint inválido.' });
+  if (endpoint === 'viagem' && !viagem) return resposta({ erro: 'Informe a viagem.' });
+  return resposta({ atualizadoEm: new Date().toISOString(), abas: lerAbas(endpoint, viagem) });
 }
 
 function md5(texto) {
@@ -48,14 +52,15 @@ function iguais(a, b) {
   return diff === 0;
 }
 
-function lerAbas() {
+function lerAbas(endpoint, viagem) {
   const ss = SpreadsheetApp.getActive();
   const fuso = ss.getSpreadsheetTimeZone();
-  const links = linksDosChips(ss);
+  const sheets = ss.getSheets().filter((sheet) => endpoint !== 'viagens' || sheet.getName().trim().toLowerCase().startsWith('travels'));
+  const links = linksDosChips(ss, false, sheets.map((sheet) => sheet.getName()));
   const abas = {};
-  ss.getSheets().forEach((sheet) => {
+  sheets.forEach((sheet) => {
     const nome = sheet.getName();
-    abas[nome] = sheet
+    const rows = sheet
       .getDataRange()
       .getValues()
       .map((linha, r) =>
@@ -66,19 +71,46 @@ function lerAbas() {
           return celula instanceof Date ? serial(celula, fuso) : celula;
         }),
       );
+    const header = rows[0] || [];
+    const viagemColumn = header.findIndex((column) => String(column).trim().toLowerCase() === 'viagem');
+    const nomeColumn = nome.trim().toLowerCase().startsWith('travels')
+      ? header.findIndex((column) => String(column).trim().toLowerCase() === 'nome') : -1;
+    const filterColumn = viagemColumn >= 0 ? viagemColumn : nomeColumn;
+    const requerFiltro = ['travels', 'activities', 'money', 'fly', 'hotel', 'food', 'transport']
+      .some((prefixo) => nome.trim().toLowerCase().startsWith(prefixo));
+    abas[nome] = endpoint === 'viagem' && (filterColumn >= 0 || requerFiltro)
+      ? [header, ...rows.slice(1).filter((row) => filterColumn >= 0 && String(row[filterColumn] || '').trim() === viagem)] : rows;
   });
+  if (endpoint === 'viagem') {
+    const moneyName = Object.keys(abas).find((name) => name.trim().toLowerCase().startsWith('money'));
+    const reserveName = Object.keys(abas).find((name) => name.trim().toLowerCase().startsWith('valuereserve'));
+    if (reserveName) {
+      const money = abas[moneyName] || [];
+      const reserves = abas[reserveName];
+      const referenceColumn = (money[0] || []).findIndex((column) => String(column).trim().toLowerCase() === 'reserva de valor');
+      const assetColumn = (reserves[0] || []).findIndex((column) => String(column).trim().toLowerCase() === 'ativo');
+      if (referenceColumn >= 0 && assetColumn >= 0) {
+        const assets = new Set(money.slice(1).flatMap((row) => String(row[referenceColumn] || '').split(',').map((asset) => asset.trim().toUpperCase()).filter(Boolean)));
+        abas[reserveName] = [reserves[0], ...reserves.slice(1).filter((row) => assets.has(String(row[assetColumn] || '').trim().toUpperCase()))];
+      } else {
+        abas[reserveName] = reserves.slice(0, 1);
+      }
+    }
+  }
   return abas;
 }
 
 // O valor de um chip de arquivo do Drive é só o nome; o link vem do serviço avançado "Google Sheets API"
 // (Serviços > + > Google Sheets API). Sem ele, os chips continuam devolvendo só o nome.
-function linksDosChips(ss, mostrarErro) {
+function linksDosChips(ss, mostrarErro, nomes) {
   const out = {};
   try {
-    const grade = Sheets.Spreadsheets.get(ss.getId(), {
+    const options = {
       includeGridData: true,
       fields: 'sheets(properties/title,data/rowData/values/chipRuns)',
-    });
+    };
+    if (nomes) options.ranges = nomes.map((nome) => `'${nome.replace(/'/g, "''")}'`);
+    const grade = Sheets.Spreadsheets.get(ss.getId(), options);
     (grade.sheets || []).forEach((s) => {
       const mapa = {};
       const linhas = (s.data && s.data[0] && s.data[0].rowData) || [];

@@ -47,7 +47,7 @@ function TripBackButton() {
 
 export default function TripScreen() {
   const { name = '' } = useLocalSearchParams<{ name: string }>();
-  const { data, isLoading, error } = useTravelData();
+  const { data, isLoading, error } = useTravelData(name);
   const [tab, setTab] = useState<TabKey>('itinerary');
   const [transportFocus, setTransportFocus] = useState<string>();
 
