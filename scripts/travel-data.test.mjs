@@ -28,7 +28,7 @@ Module._load = function (id, ...args) {
   if (id === '@react-native-async-storage/async-storage') return { __esModule: true, default: storage };
   return originalLoad.call(this, id, ...args);
 };
-const { CACHE_DURATION, getQuote, quoteRequest, reserveResult } = require('../src/features/travel/quotes.ts');
+const { CACHE_DURATION, getQuote, quoteRequest, quoteUnavailableReason, reserveResult } = require('../src/features/travel/quotes.ts');
 Module._load = originalLoad;
 
 const travelStorage = new Map();
@@ -45,7 +45,7 @@ Module._load = function (id, ...args) {
     remoteCacheScope: () => scope,
     fetchRemoteTabs: async (endpoint, trip) => {
       travelCalls.push([endpoint, trip]);
-      return { tabs: { 'Travels 🧳': [['Nome'], ['Viagem A']] }, fetchedAt: Date.now() };
+      return { tabs: { 'Travels 🧳': [['Nome', 'Data Inicial'], ['Viagem B', 46600], ['Sem data', ''], ['Viagem A', 46500]] }, fetchedAt: Date.now() };
     },
   };
   if (id === '@/services/sheets/client') return { pickTabs: (tabs) => [tabs['Travels 🧳']] };
@@ -137,8 +137,13 @@ test('resultado de reserva compara valores na mesma moeda e exige dados suficien
   assert.equal(reserveResult({ ...reserve, value: null, usedRate: null }, quote), null);
   assert.equal(reserveResult({ ...reserve, currency: 'USD' }, quote), null);
   assert.deepEqual(quoteRequest({ ...reserve, asset: 'PETR4' }, data.currencies), { kind: 'stock', symbol: 'PETR4', currency: 'BRL' });
+  assert.deepEqual(quoteRequest({ ...reserve, asset: 'U1BE34' }, data.currencies), { kind: 'stock', symbol: 'U1BE34', currency: 'BRL' });
+  const currencies = [...data.currencies, { symbol: 'COP$', sign: '$', name: 'Peso colombiano', type: 'Fiduciária', rateBRL: 0.001 }];
+  assert.deepEqual(quoteRequest({ ...reserve, asset: 'COP', type: 'Investimento' }, currencies), { kind: 'currency', symbol: 'COP', currency: 'BRL' });
   assert.equal(quoteRequest({ ...reserve, asset: 'PETR4', currency: 'USD' }, data.currencies), null);
   assert.equal(quoteRequest({ ...reserve, asset: 'ATIVO1' }, data.currencies), null);
+  assert.match(quoteUnavailableReason({ ...reserve, asset: '120% CDI', type: 'Caixinha CDI' }), /CDI/);
+  assert.match(quoteUnavailableReason({ ...reserve, asset: 'BNO', type: 'ETFs', currency: 'USD' }), /ETF em moeda estrangeira/);
 });
 
 test('cache de cotação dura 12 horas e não armazena respostas inválidas', async () => {
@@ -165,6 +170,9 @@ test('cache de cotação dura 12 horas e não armazena respostas inválidas', as
     globalThis.fetch = async () => ({ ok: true, json: async () => ({ USDBRL: { code: 'USD', codein: 'BRL', bid: '0', timestamp: '1699999000' } }) });
     await assert.rejects(getQuote({ kind: 'currency', symbol: 'USD', currency: 'BRL' }));
     assert.equal(quoteStorage.size, 1);
+    globalThis.fetch = async () => ({ ok: false, status: 401 });
+    await assert.rejects(getQuote({ kind: 'stock', symbol: 'U1BE34', currency: 'BRL' }), /acesso autorizado/);
+    assert.equal(quoteStorage.size, 1);
   } finally {
     globalThis.fetch = originalFetch;
     Date.now = originalNow;
@@ -187,6 +195,7 @@ test('lista usa cache isolado por origem por exatamente 24 horas', async () => {
   try {
     const first = await loadTravels();
     assert.equal(first.travels[0].name, 'Viagem A');
+    assert.deepEqual(first.travels.map((travel) => travel.name), ['Viagem A', 'Viagem B', 'Sem data']);
     now += TRAVEL_CACHE_DURATION - 1;
     assert.deepEqual(await loadTravels(), first);
     assert.equal(travelCalls.length, 1);

@@ -18,11 +18,11 @@ type QuoteRequest = { kind: 'currency' | 'stock'; symbol: string; currency: stri
 
 function currencyCode(value: string): string {
   const code = value.trim().toUpperCase();
-  return code === 'R$' ? 'BRL' : code;
+  return code === 'R$' ? 'BRL' : code.replace(/^([A-Z]{3})\$$/, '$1');
 }
 
 export function quoteRequest(reserve: ValueReserve, currencies: Currency[]): QuoteRequest | null {
-  const symbol = reserve.asset.trim().toUpperCase();
+  const symbol = currencyCode(reserve.asset);
   const currency = currencyCode(reserve.currency);
   const assetCurrency = currencies.find((item) => currencyCode(item.symbol) === symbol);
   const assetType = (assetCurrency?.type || reserve.type).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -30,10 +30,21 @@ export function quoteRequest(reserve: ValueReserve, currencies: Currency[]): Quo
   if (isCurrency && /^[A-Z]{3}$/.test(symbol) && /^[A-Z]{3}$/.test(currency) && symbol !== currency) {
     return { kind: 'currency', symbol, currency };
   }
-  if (currency === 'BRL' && /^[A-Z]{4}\d{1,2}$/.test(symbol)) {
+  if (currency === 'BRL' && /^[A-Z][A-Z0-9]{3}\d{1,2}$/.test(symbol)) {
     return { kind: 'stock', symbol, currency };
   }
   return null;
+}
+
+export function quoteUnavailableReason(reserve: ValueReserve): string {
+  const type = reserve.type.toUpperCase();
+  if (type.includes('CDI') || reserve.asset.toUpperCase().includes('CDI')) {
+    return 'Reserva atrelada ao CDI não possui cotação por unidade nesta fonte.';
+  }
+  if (type.includes('ETF') && currencyCode(reserve.currency) !== 'BRL') {
+    return 'ETF em moeda estrangeira não é suportado pela fonte atual.';
+  }
+  return 'Cotação indisponível: confira a sigla, o tipo e a moeda do ativo';
 }
 
 export function reserveResult(reserve: ValueReserve, quote: Quote): { current: number; difference: number } | null {
@@ -60,7 +71,7 @@ export async function getQuote(request: QuoteRequest): Promise<Quote> {
   let marketTime: number;
   if (request.kind === 'currency') {
     const response = await fetch(`https://economia.awesomeapi.com.br/json/last/${request.symbol}-${request.currency}`);
-    if (!response.ok) throw new Error('Cotação indisponível');
+    if (!response.ok) throw new Error('Não foi possível consultar a cotação da moeda.');
     const data = await response.json();
     const result = data[`${request.symbol}${request.currency}`];
     if (result?.code !== request.symbol || result?.codein !== request.currency) throw new Error('Cotação inválida');
@@ -68,7 +79,8 @@ export async function getQuote(request: QuoteRequest): Promise<Quote> {
     marketTime = Number(result.timestamp) * 1000;
   } else {
     const response = await fetch(`https://brapi.dev/api/v2/stocks/quote?symbols=${encodeURIComponent(request.symbol)}`);
-    if (!response.ok) throw new Error('Cotação indisponível');
+    if (response.status === 401 || response.status === 403) throw new Error('A consulta deste ativo exige acesso autorizado à brapi.');
+    if (!response.ok) throw new Error('Não foi possível consultar a cotação do ativo.');
     const data = await response.json();
     const result = data.results?.[0];
     if (result?.requestedSymbol !== request.symbol || result?.symbol !== request.symbol || result?.changed || result?.data?.currency !== request.currency) throw new Error('Cotação inválida');

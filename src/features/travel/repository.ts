@@ -15,6 +15,11 @@ const OPTIONAL_TABS: TableKey[] = ['locals', 'coords', 'valueReserves'];
 
 export const TRAVEL_CACHE_DURATION = 24 * 60 * 60 * 1000;
 
+function parseTravels(rows: SheetRows): Travel[] {
+  return parseTable(rows, schemas.travels.fields).sort((first, second) =>
+    (first.startDate ?? Infinity) - (second.startDate ?? Infinity));
+}
+
 export async function loadTravels(): Promise<{ travels: Travel[]; fetchedAt: number }> {
   const scope = USE_REMOTE ? remoteCacheScope() : isSheetsConfigured ? md5(env.sheetsId) : 'sample';
   const key = `travel-hunt:travels:v1:${scope}`;
@@ -24,7 +29,7 @@ export async function loadTravels(): Promise<{ travels: Travel[]; fetchedAt: num
       const cached = JSON.parse(stored) as { rows: SheetRows; fetchedAt: number };
       if (Array.isArray(cached.rows) && cached.rows.every(Array.isArray) && Number.isFinite(cached.fetchedAt) &&
           cached.fetchedAt <= Date.now() && Date.now() - cached.fetchedAt < TRAVEL_CACHE_DURATION) {
-        return { travels: parseTable(cached.rows, schemas.travels.fields), fetchedAt: cached.fetchedAt };
+        return { travels: parseTravels(cached.rows), fetchedAt: cached.fetchedAt };
       }
     }
   } catch {}
@@ -43,7 +48,7 @@ export async function loadTravels(): Promise<{ travels: Travel[]; fetchedAt: num
   try {
     await AsyncStorage.setItem(key, JSON.stringify({ rows, fetchedAt }));
   } catch {}
-  return { travels: parseTable(rows, schemas.travels.fields), fetchedAt };
+  return { travels: parseTravels(rows), fetchedAt };
 }
 
 export async function loadTravelData(viagem: string): Promise<Tables> {

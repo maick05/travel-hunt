@@ -40,6 +40,8 @@ Para atualizar o serviço existente, copie [scripts/apps-script/api.gs](scripts/
 
 As reservas consultam moedas e criptomoedas pela [AwesomeAPI](https://docs.awesomeapi.com.br/api-de-moedas) e códigos de ativos da B3 em reais pela [brapi](https://brapi.dev/docs/acoes/cotacao). Cadastre a sigla da moeda na aba Currency com o tipo `Fiduciária` ou `Criptomoeda`, ou informe `Moeda` ou `Criptomoeda` no tipo da reserva. Na brapi, sem chave, somente PETR4, MGLU3, VALE3 e ITUB4 estão disponíveis para teste; os demais exigem uma integração autenticada no servidor. Não coloque chaves no aplicativo cliente.
 
+Siglas de moeda com cifrão ao final, como `COP$`, também são reconhecidas como `COP`. Códigos de BDR como `U1BE34` são consultados, mas dependem de autorização da brapi. A fonte atual não cobre ETFs em moeda estrangeira nem calcula o rendimento de reservas atreladas ao CDI. Confira a sigla cadastrada: códigos inválidos não são substituídos automaticamente por outro ativo.
+
 A cotação é guardada no armazenamento do dispositivo por 12 horas. O resultado estimado é a quantidade multiplicada pela última cotação, menos o valor reservado; caso este não esteja informado, usa-se quantidade vezes cotação usada. Os valores são comparados na moeda da reserva, sem estimar taxas futuras, impostos ou movimentações posteriores. A data exibida é a data da cotação informada pela fonte, que pode ser anterior ao dia atual quando o mercado estiver fechado.
 
 You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).

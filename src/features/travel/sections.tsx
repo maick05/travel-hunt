@@ -40,7 +40,7 @@ import {
 } from './format';
 import { buildMap, itineraryActivities } from './map-data';
 import { createPlaces, placeLabel } from './places';
-import { CACHE_DURATION, getQuote, quoteRequest, reserveResult } from './quotes';
+import { CACHE_DURATION, getQuote, quoteRequest, quoteUnavailableReason, reserveResult } from './quotes';
 import { assetKey, hasReserveAsset } from './reserves';
 import type { Bill, Currency, Flight } from './schema';
 import type { TripData } from './use-travel-data';
@@ -852,9 +852,9 @@ function ReserveQuote({ reserve, currencies }: { reserve: TripData['valueReserve
     staleTime: (query) => query.state.data ? Math.max(0, query.state.data.fetchedAt + CACHE_DURATION - query.state.dataUpdatedAt) : 0,
     refetchInterval: (query) => query.state.data ? Math.max(1000, query.state.data.fetchedAt + CACHE_DURATION - Date.now()) : false,
   });
-  if (!request) return <ThemedText type="small" themeColor="textSecondary">Cotação não disponível para este ativo</ThemedText>;
+  if (!request) return <ThemedText type="small" themeColor="textSecondary">{quoteUnavailableReason(reserve)}</ThemedText>;
   if (quote.isPending) return <ThemedText type="small" themeColor="textSecondary">Consultando cotação...</ThemedText>;
-  if (quote.isError || !quote.data) return <ThemedText type="small" themeColor="textSecondary">Não foi possível consultar a cotação</ThemedText>;
+  if (quote.isError || !quote.data) return <ThemedText type="small" themeColor="textSecondary">{quote.error instanceof Error ? quote.error.message : 'Não foi possível consultar a cotação'}</ThemedText>;
   const result = reserveResult(reserve, quote.data);
   const price = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(quote.data.price);
   const time = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(quote.data.marketTime);
