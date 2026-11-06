@@ -61,9 +61,12 @@ export async function loadTravelData(viagem: string): Promise<Tables> {
   if (!USE_REMOTE && !isSheetsConfigured) return parseTables(sampleRows);
 
   const tabs = tableKeys.map((k) => ({ prefix: schemas[k].tab, optional: OPTIONAL_TABS.includes(k) }));
-  const rows = USE_REMOTE ? pickTabs((await fetchRemoteTabs('viagem', viagem)).tabs, tabs) : await fetchTabs(tabs);
+  const response = USE_REMOTE ? await fetchRemoteTabs('viagem', viagem) : undefined;
+  const rows = response ? pickTabs(response.tabs, tabs) : await fetchTabs(tabs);
+  const originals = response?.origins ? pickTabs(response.origins, tabs) : undefined;
   const tables = parseTables(
     Object.fromEntries(tableKeys.map((k, i) => [k, rows[i]])) as Parameters<typeof parseTables>[0],
+    originals ? Object.fromEntries(tableKeys.map((k, i) => [k, originals[i]])) as Parameters<typeof parseTables>[0] : undefined,
   );
   registerCoords(tables.coords);
   return tables;

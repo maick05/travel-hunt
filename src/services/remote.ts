@@ -11,13 +11,14 @@ const EDIT_STORAGE_KEY = 'travel-hunt:edicao-md5';
 const WRONG_PASSWORD = 'Senha incorreta.';
 
 type Tabs = Record<string, SheetRows>;
+type RemoteData = { tabs: Tabs; origins?: Tabs };
 
 // As credenciais recebidas já são hashes MD5.
 let hash: string | null = null;
 let editHash: string | null = null;
 let prefetched: { tabs: Tabs; fetchedAt: number } | null = null;
 
-async function request(senhaMd5: string, endpoint: 'viagens' | 'viagem', viagem?: string): Promise<Tabs> {
+async function request(senhaMd5: string, endpoint: 'viagens' | 'viagem', viagem?: string): Promise<RemoteData> {
   // text/plain evita o preflight de CORS, que o Apps Script não responde.
   const url = new URL(SCRIPT_URL);
   url.searchParams.set('endpoint', endpoint);
@@ -25,18 +26,18 @@ async function request(senhaMd5: string, endpoint: 'viagens' | 'viagem', viagem?
   const res = await fetch(url.toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ senha: senhaMd5 }),
+    body: JSON.stringify({ senha: senhaMd5, ...(endpoint === 'viagem' && editHash ? { role: editHash, edicao: true } : {}) }),
   });
   if (!res.ok) throw new Error(`Erro ao acessar os dados (${res.status})`);
 
-  const json = (await res.json()) as { erro?: string; abas?: Tabs };
+  const json = (await res.json()) as { erro?: string; abas?: Tabs; origens?: Tabs };
   if (json.erro === 'senha') throw new Error(WRONG_PASSWORD);
   if (!json.abas) throw new Error(json.erro ?? 'Resposta inesperada do servidor.');
-  return json.abas;
+  return { tabs: json.abas, origins: json.origens };
 }
 
 async function open(senhaMd5: string): Promise<void> {
-  prefetched = { tabs: await request(senhaMd5, 'viagens'), fetchedAt: Date.now() };
+  prefetched = { tabs: (await request(senhaMd5, 'viagens')).tabs, fetchedAt: Date.now() };
   hash = senhaMd5;
   localStorage.setItem(STORAGE_KEY, senhaMd5);
 }
@@ -103,7 +104,7 @@ export async function editingSheets(): Promise<EditSheet[]> {
   return result.abas;
 }
 
-export async function saveCell(payload: { aba: number; linha: number; coluna: number; versao: string; valor: string | number | boolean }): Promise<void> {
+export async function saveItem(payload: { aba: number; linha: number; versao: string; alteracoes: { coluna: number; valor: string | number | boolean }[] }): Promise<void> {
   if (!editHash) throw new Error('Edição não autorizada.');
   await editRequest('editar', editHash, payload);
   prefetched = null;
@@ -153,7 +154,7 @@ export function remoteCacheScope(): string {
   return md5(`${SCRIPT_URL}:${hash}`);
 }
 
-export async function fetchRemoteTabs(endpoint: 'viagens' | 'viagem', viagem?: string): Promise<{ tabs: Tabs; fetchedAt: number }> {
+export async function fetchRemoteTabs(endpoint: 'viagens' | 'viagem', viagem?: string): Promise<RemoteData & { fetchedAt: number }> {
   if (!hash) throw new Error('Dados bloqueados.');
   if (endpoint === 'viagem' && !viagem?.trim()) throw new Error('Informe a viagem.');
   if (endpoint === 'viagens' && prefetched) {
@@ -162,8 +163,8 @@ export async function fetchRemoteTabs(endpoint: 'viagens' | 'viagem', viagem?: s
     if (Date.now() >= cached.fetchedAt && Date.now() - cached.fetchedAt < 24 * 60 * 60 * 1000) return cached;
   }
   try {
-    const tabs = await request(hash, endpoint, viagem);
-    return { tabs, fetchedAt: Date.now() };
+    const data = await request(hash, endpoint, viagem);
+    return { ...data, fetchedAt: Date.now() };
   } catch (e) {
     // A senha mudou no servidor: esquece o hash e volta para a tela de senha.
     if ((e as Error).message === WRONG_PASSWORD) {

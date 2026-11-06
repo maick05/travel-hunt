@@ -18,7 +18,7 @@ export function useTravels() {
 }
 
 export function useTravelData(name: string) {
-  return useQuery({ queryKey: ['travel-data', name], queryFn: () => loadTravelData(name), enabled: !!name.trim(), staleTime: 60_000 });
+  return useQuery({ queryKey: ['travel-data', name], queryFn: () => loadTravelData(name), enabled: !!name.trim(), staleTime: 60_000, structuralSharing: false });
 }
 
 export type TripData = Omit<Tables, 'travels'>;

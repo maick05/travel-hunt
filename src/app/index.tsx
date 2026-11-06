@@ -1,4 +1,5 @@
-import { Link, type Href } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
@@ -14,6 +15,7 @@ import { useTravels } from '@/features/travel/use-travel-data';
 import { canEdit, enableEditing, USE_REMOTE } from '@/services/remote';
 
 export default function TripsScreen() {
+  const queryClient = useQueryClient();
   const { data, isLoading, error, refetch } = useTravels();
   const [editing, setEditing] = useState(canEdit());
   const [showRole, setShowRole] = useState(false);
@@ -24,13 +26,11 @@ export default function TripsScreen() {
     <ScreenBackground>
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="title">Viagens</ThemedText>
-        {USE_REMOTE && (editing ? (
-          <Link href={'/edit' as Href}><ThemedText type="link">Editar planilha</ThemedText></Link>
-        ) : showRole ? (
+        {USE_REMOTE && !editing && (showRole ? (
           <View style={styles.list}>
             <TextInput value={role} onChangeText={setRole} secureTextEntry autoCapitalize="none" placeholder="MD5 de edição" style={styles.roleInput} />
             {roleError ? <ThemedText>{roleError}</ThemedText> : null}
-            <Pressable onPress={async () => { try { await enableEditing(role); setRole(''); setEditing(true); } catch (e) { setRoleError((e as Error).message); } }}>
+            <Pressable onPress={async () => { try { await enableEditing(role); await queryClient.invalidateQueries({ queryKey: ['travel-data'] }); setRole(''); setEditing(true); } catch (e) { setRoleError((e as Error).message); } }}>
               <ThemedText type="link">Habilitar edição</ThemedText>
             </Pressable>
           </View>

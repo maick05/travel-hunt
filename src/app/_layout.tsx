@@ -32,7 +32,6 @@ export default function RootLayout() {
             }}>
             <Stack.Screen name="index" options={{ title: 'Travel Hunt' }} />
             <Stack.Screen name="trip" options={{ title: 'Travel Hunt' }} />
-            <Stack.Screen name="edit" options={{ title: 'Editar planilha' }} />
           </Stack>
         </PasswordGate>
       </ThemeProvider>

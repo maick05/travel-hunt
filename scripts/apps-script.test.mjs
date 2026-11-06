@@ -54,6 +54,13 @@ function service(changeRows = () => {}, useBatch = false, chipSheets = [], optio
     } },
     console: { log: (message) => logs.push(JSON.parse(message)) },
     Sheets: { Spreadsheets: {
+      batchUpdate: ({ requests }) => {
+        for (const { updateCells } of requests) {
+          const sheet = sheets.find((item) => item.getSheetId() === updateCells.start.sheetId);
+          const entry = updateCells.rows[0].values[0].userEnteredValue;
+          sheet.getRange(updateCells.start.rowIndex + 1, updateCells.start.columnIndex + 1).setValue(entry.numberValue ?? entry.boolValue ?? entry.stringValue);
+        }
+      },
       get: (_id, params) => {
         chipRequests.push(params);
         if (chipFailures > 0) { chipFailures--; throw new Error('indisponível'); }
@@ -212,21 +219,31 @@ test('validação de edição exige as duas credenciais e uma role configurada',
 });
 
 test('edição valida credenciais, conflito e fórmulas antes de alterar uma célula', () => {
-  const instance = service((rows) => { rows['Travels 🧳'][1][1] = '=TODAY()'; }, false, [], { role: 'editor' });
+  const instance = service((rows) => { rows['Activities 🚶'][0].push('Calculado'); rows['Activities 🚶'][1].push('=TODAY()'); }, false, [], { role: 'editor' });
   const role = createHash('md5').update('editor').digest('hex');
   const data = instance.post({ endpoint: 'dados-edicao' }, 'hash', role);
-  const sheet = data.abas[0];
+  const sheet = data.abas.find((item) => item.nome === 'Activities 🚶');
   const version = sheet.linhas[0].versao;
-  const request = { aba: sheet.id, linha: 2, coluna: 1, versao: version, valor: 'Nova viagem' };
+  const request = { aba: sheet.id, linha: 2, coluna: 1, versao: version, valor: 'Novo passeio' };
   assert.equal(instance.post({ endpoint: 'editar' }, 'hash', 'errada', request).erro, 'role');
   assert.equal(instance.post({ endpoint: 'dados-edicao' }, 'hash', 'errada').erro, 'role');
   assert.equal(instance.post({ endpoint: 'editar' }, 'errada', role, request).erro, 'senha');
   assert.equal(instance.post({ endpoint: 'editar' }, 'hash', role, { ...request, valor: '=1+1' }).erro, 'Alteração inválida.');
-  assert.equal(instance.post({ endpoint: 'editar' }, 'hash', role, { ...request, coluna: 2 }).erro, 'Células com fórmula não podem ser alteradas.');
+  assert.equal(instance.post({ endpoint: 'editar' }, 'hash', role, { ...request, coluna: 3 }).erro, 'Células com fórmula não podem ser alteradas.');
+  assert.match(instance.post({ endpoint: 'editar' }, 'hash', role, { ...request, coluna: 2 }).erro, /identificação da viagem/);
   assert.equal(instance.post({ endpoint: 'editar' }, 'hash', role, request).alterado, true);
-  assert.equal(instance.rows['Travels 🧳'][1][0], 'Nova viagem');
+  assert.equal(instance.rows['Activities 🚶'][1][0], 'Novo passeio');
   assert.match(instance.post({ endpoint: 'editar' }, 'hash', role, request).erro, /alterada/);
-  assert.equal(instance.rows['Travels 🧳'][1][1], '=TODAY()');
+  assert.equal(instance.rows['Activities 🚶'][1][2], '=TODAY()');
+});
+
+test('edição protege nome e identificação da viagem', () => {
+  const instance = service((rows) => { rows['Travels 🧳'][0].push('ID'); rows['Travels 🧳'][1].push('123'); }, false, [], { role: 'editor' });
+  const role = createHash('md5').update('editor').digest('hex');
+  const sheet = instance.post({ endpoint: 'dados-edicao' }, 'hash', role).abas[0];
+  for (const coluna of [1, 3]) {
+    assert.match(instance.post({ endpoint: 'editar' }, 'hash', role, { aba: sheet.id, linha: 2, coluna, versao: sheet.linhas[0].versao, valor: 'outro' }).erro, /identificação da viagem/);
+  }
 });
 
 test('edição detecta alteração no cabeçalho e invalida cache da aba compartilhada', () => {
@@ -240,4 +257,27 @@ test('edição detecta alteração no cabeçalho e invalida cache da aba compart
   instance.rows['Currency 🪙'][0][0] = 'Sigla';
   assert.equal(instance.post({ endpoint: 'editar' }, 'hash', role, request).alterado, true);
   assert.equal(instance.post({ endpoint: 'viagem', viagem: 'Viagem A' }).abas['Currency 🪙'][1][0], 'BRL');
+});
+
+test('edição conjunta valida todos os campos antes de gravar', () => {
+  const instance = service((rows) => { rows['Activities 🚶'][0].push('Status'); rows['Activities 🚶'][1].push('Pendente'); }, false, [], { role: 'editor' });
+  const role = createHash('md5').update('editor').digest('hex');
+  const sheet = instance.post({ endpoint: 'dados-edicao' }, 'hash', role).abas.find((item) => item.nome === 'Activities 🚶');
+  const request = { aba: sheet.id, linha: 2, versao: sheet.linhas[0].versao, alteracoes: [{ coluna: 1, valor: 'Novo' }, { coluna: 2, valor: 'Outra viagem' }] };
+  assert.match(instance.post({ endpoint: 'editar' }, 'hash', role, request).erro, /identificação da viagem/);
+  assert.equal(instance.rows['Activities 🚶'][1][0], 'Museu');
+  request.alteracoes[1] = { coluna: 3, valor: 'Confirmado' };
+  assert.equal(instance.post({ endpoint: 'editar' }, 'hash', role, request).alterado, true);
+  assert.deepEqual(instance.rows['Activities 🚶'][1], ['Novo', 'Viagem A', 'Confirmado']);
+  assert.match(instance.post({ endpoint: 'editar' }, 'hash', role, request).erro, /alterada/);
+});
+
+test('dados originais para edição exigem role e preservam valores antes da conversão', () => {
+  const instance = service((rows) => { rows['Activities 🚶'][1][0] = 'museu.pdf'; }, true, [], { role: 'editor' });
+  const role = createHash('md5').update('editor').digest('hex');
+  const params = { endpoint: 'viagem', viagem: 'Viagem A' };
+  assert.equal(instance.post(params, 'hash', 'errada', { edicao: true }).origens, undefined);
+  const result = instance.post(params, 'hash', role, { edicao: true });
+  assert.equal(result.abas['Activities 🚶'][1][0], 'https://example.test/museu.pdf');
+  assert.equal(result.origens['Activities 🚶'][1][0], 'museu.pdf');
 });

@@ -5,6 +5,11 @@ const DAY_MS = 86_400_000;
 
 // Colunas pré-preenchidas na planilha mesmo em linhas vazias.
 const FILLER_KEYS = new Set(['trip', 'code', 'id', 'reserved']);
+const sourceRows = new WeakMap<object, { header: SheetCell[]; row: SheetCell[] }>();
+
+export function sourceRowOf(item: object) {
+  return sourceRows.get(item);
+}
 
 function toText(v: SheetCell): string {
   return v == null ? '' : String(v).trim();
@@ -28,7 +33,7 @@ function toBoolean(v: SheetCell): boolean | null {
   return null;
 }
 
-export function parseTable<S extends FieldSpec>(rows: SheetRows, fields: S): Row<S>[] {
+export function parseTable<S extends FieldSpec>(rows: SheetRows, fields: S, originals?: SheetRows): Row<S>[] {
   const [header = [], ...body] = rows;
   const columnOf = new Map<string, number[]>();
   header.forEach((value, index) => {
@@ -38,7 +43,7 @@ export function parseTable<S extends FieldSpec>(rows: SheetRows, fields: S): Row
   const keys = Object.keys(fields);
 
   const result: Row<S>[] = [];
-  for (const row of body) {
+  for (const [rowIndex, row] of body.entries()) {
     const item: Record<string, string | string[] | number | boolean | null> = {};
     let hasData = false;
 
@@ -52,13 +57,16 @@ export function parseTable<S extends FieldSpec>(rows: SheetRows, fields: S): Row
       item[key] = value;
       if (!FILLER_KEYS.has(key) && value !== '' && value !== null && (!Array.isArray(value) || value.length > 0)) hasData = true;
     }
-    if (hasData) result.push(item as Row<S>);
+    if (hasData) {
+      if (originals?.[0] && originals[rowIndex + 1]) sourceRows.set(item, { header: originals[0], row: originals[rowIndex + 1] });
+      result.push(item as Row<S>);
+    }
   }
   return result;
 }
 
 export const tableKeys = Object.keys(schemas) as TableKey[];
 
-export function parseTables(raw: Record<TableKey, SheetRows>): Tables {
-  return Object.fromEntries(tableKeys.map((k) => [k, parseTable(raw[k], schemas[k].fields)])) as Tables;
+export function parseTables(raw: Record<TableKey, SheetRows>, originals?: Partial<Record<TableKey, SheetRows>>): Tables {
+  return Object.fromEntries(tableKeys.map((k) => [k, parseTable(raw[k], schemas[k].fields, originals?.[k])])) as Tables;
 }

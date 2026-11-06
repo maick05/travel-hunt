@@ -22,6 +22,7 @@ import {
 } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { cityCostKey, costFor, costsByCity, mealCostsByType } from './costs';
+import { EditButton } from './edit-item';
 import {
   billToBRL,
   dayKey,
@@ -264,6 +265,7 @@ function DayList({
                   <Field label="Obs." value={a.notes} />
                   <FileLink url={a.voucher} />
                   <ActivityCost data={data} code={a.code} />
+                  <EditButton table="activities" item={a} title="atividade" />
                 </View>
               </View>
             </Card>
@@ -323,6 +325,7 @@ export function FlightsSection({ data }: { data: TripData }) {
                   <Field label="Chegada" value={`${formatDateTime(f.arrival)} · ${f.to}`} />
                   <Field label="Etapa do percurso" value={f.stage} />
                   <FileLink url={f.voucher} />
+                  <EditButton table="flights" item={f} title="trecho de voo" />
                 </View>
               ))}
             </View>
@@ -368,6 +371,7 @@ export function HotelsSection({ data }: { data: TripData }) {
             <Field label="Reserva" value={h.code} />
             <FileLink url={h.voucher} />
             <CostLines cost={cost} currencies={data.currencies} />
+            <EditButton table="hotels" item={h} title="hospedagem" />
           </ExpandCard>
         );
       })}
@@ -453,6 +457,7 @@ function TransportCards({ data, transports, focusKey }: { data: TripData; transp
             <FileLink url={t.voucher} />
             <Field label="Meio" value={[t.mode, t.platform].filter(Boolean).join(' · ')} />
             <CostLines cost={cost} currencies={data.currencies} />
+            <EditButton table="transports" item={t} title="transporte" />
           </ExpandCard>
         );
       })}
@@ -567,6 +572,7 @@ function FoodDays({ data, meals }: { data: TripData; meals: TripData['meals'] })
                 <Field label="Cardápio" value={m.menu} />
                 <FileLink url={m.menuFile} label="Abrir cardápio" />
                 <CostLines cost={cost} currencies={data.currencies} />
+                <EditButton table="meals" item={m} title="refeição" />
               </ExpandCard>
             );
           })}
@@ -824,6 +830,7 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
                     </View>
                   ) : null}
                 </View>
+                <EditButton table="valueReserves" item={reserve} title="reserva de valor" />
               </View>
             </View>
           </View>
@@ -976,6 +983,7 @@ function BillCard({ bill, brl, currencies, reserves, share = 1 }: { bill: Bill; 
             </View>
           ) : null}
           <FileLink url={bill.receipt} label="Comprovante" />
+          <EditButton table="bills" item={bill} title="despesa" />
         </View>
         <StatusBadge status={bill.status} />
       </View>

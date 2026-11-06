@@ -44,11 +44,13 @@ function doPost(e) {
   }
   if (endpoint !== 'viagens' && endpoint !== 'viagem') return resposta({ erro: 'Endpoint inválido.' });
   if (endpoint === 'viagem' && !viagem) return resposta({ erro: 'Informe a viagem.' });
+  const roleLeitura = corpo.edicao && PropertiesService.getScriptProperties().getProperty('ROLE_EDICAO');
+  const incluirOrigens = endpoint === 'viagem' && roleLeitura && iguais(String(corpo.role || '').toLowerCase(), md5(roleLeitura));
   const metricas = { endpoint, abasEmCache: 0, chipsEmCache: false, driveMs: 0 };
-  const abas = lerAbas(endpoint, viagem, metricas);
+  const { abas, origens } = lerAbas(endpoint, viagem, metricas, incluirOrigens);
   metricas.totalMs = Date.now() - iniciado;
   console.log(JSON.stringify({ evento: 'travel-hunt-desempenho', ...metricas }));
-  return resposta({ atualizadoEm: new Date().toISOString(), abas });
+  return resposta({ atualizadoEm: new Date().toISOString(), abas, ...(origens ? { origens } : {}) });
 }
 
 function md5(texto) {
@@ -93,10 +95,14 @@ function dadosEdicao() {
 }
 
 function editarCelula(corpo) {
-  const { aba, linha, coluna, versao, valor } = corpo;
-  if (!Number.isInteger(aba) || !Number.isInteger(linha) || linha < 2 || !Number.isInteger(coluna) || coluna < 1 ||
-      typeof versao !== 'string' || !(typeof valor === 'string' || typeof valor === 'number' || typeof valor === 'boolean') ||
-      (typeof valor === 'number' && !Number.isFinite(valor)) || (typeof valor === 'string' && valor.startsWith('='))) {
+  const { aba, linha, versao } = corpo;
+  const alteracoes = corpo.alteracoes === undefined ? [{ coluna: corpo.coluna, valor: corpo.valor }] : corpo.alteracoes;
+  if (!Number.isInteger(aba) || !Number.isInteger(linha) || linha < 2 || typeof versao !== 'string' ||
+      !Array.isArray(alteracoes) || !alteracoes.length ||
+      alteracoes.some((item) => !item || typeof item !== 'object' || !Number.isInteger(item.coluna) || item.coluna < 1 ||
+        !(typeof item.valor === 'string' || typeof item.valor === 'number' || typeof item.valor === 'boolean') ||
+        (typeof item.valor === 'number' && !Number.isFinite(item.valor)) || (typeof item.valor === 'string' && item.valor.startsWith('='))) ||
+      new Set(alteracoes.map(({ coluna }) => coluna)).size !== alteracoes.length) {
     return { erro: 'Alteração inválida.' };
   }
   const lock = LockService.getScriptLock();
@@ -104,14 +110,29 @@ function editarCelula(corpo) {
   try {
     const ss = SpreadsheetApp.getActive();
     const sheet = ss.getSheets().find((item) => item.getSheetId() === aba);
-    if (!sheet || linha > sheet.getLastRow() || coluna > sheet.getLastColumn()) return { erro: 'Célula não encontrada.' };
+    if (!sheet || linha > sheet.getLastRow() || alteracoes.some(({ coluna }) => coluna > sheet.getLastColumn())) return { erro: 'Célula não encontrada.' };
     const range = sheet.getRange(linha, 1, 1, sheet.getLastColumn());
     const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const abaViagens = /^travels/i.test(sheet.getName().trim());
+    if (alteracoes.some(({ coluna }) => {
+      const nomeColuna = String(header[coluna - 1] || '').trim().toLowerCase();
+      return nomeColuna === 'viagem' || nomeColuna === 'id viagem' || nomeColuna === 'id da viagem' ||
+        (abaViagens && (nomeColuna === 'nome' || nomeColuna === 'id'));
+    })) {
+      return { erro: 'A identificação da viagem não pode ser alterada.' };
+    }
     const current = linhaEdicao(range.getValues()[0], range.getFormulas()[0], ss.getSpreadsheetTimeZone(), header);
     if (current.versao !== versao) return { erro: 'A linha foi alterada. Atualize os dados e tente novamente.' };
-    if (current.cells[coluna - 1].formula) return { erro: 'Células com fórmula não podem ser alteradas.' };
-    sheet.getRange(linha, coluna).setValue(valor);
-    SpreadsheetApp.flush();
+    if (alteracoes.some(({ coluna }) => current.cells[coluna - 1].formula)) return { erro: 'Células com fórmula não podem ser alteradas.' };
+    const requests = alteracoes.map(({ coluna, valor }) => ({
+      updateCells: {
+        start: { sheetId: aba, rowIndex: linha - 1, columnIndex: coluna - 1 },
+        rows: [{ values: [{ userEnteredValue: typeof valor === 'number' ? { numberValue: valor } :
+          typeof valor === 'boolean' ? { boolValue: valor } : { stringValue: valor } }] }],
+        fields: 'userEnteredValue',
+      },
+    }));
+    Sheets.Spreadsheets.batchUpdate({ requests }, ss.getId());
     try { CacheService.getScriptCache().remove(chaveCache('aba', [ss.getId(), sheet.getName()])); } catch (e) {}
     return { alterado: true };
   } finally {
@@ -172,7 +193,7 @@ function lerValores(ss, sheets, fuso, metricas) {
   return valores;
 }
 
-function lerAbas(endpoint, viagem, metricas) {
+function lerAbas(endpoint, viagem, metricas, incluirOrigens) {
   const inicioLeitura = Date.now();
   const ss = SpreadsheetApp.getActive();
   const fuso = ss.getSpreadsheetTimeZone();
@@ -259,7 +280,9 @@ function lerAbas(endpoint, viagem, metricas) {
     }));
   });
   metricas.conversaoMs = Date.now() - inicioConversao;
-  return abas;
+  const origens = incluirOrigens ? Object.fromEntries(Object.keys(selecionadas).map((nome) =>
+    [nome, selecionadas[nome].map(({ row }) => row)])) : undefined;
+  return { abas, origens };
 }
 
 // O valor de um chip de arquivo do Drive é só o nome; o link vem do serviço avançado "Google Sheets API"

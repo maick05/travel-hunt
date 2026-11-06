@@ -12,7 +12,7 @@ require.extensions['.ts'] = (module, filename) => {
 
 const { parseTable, parseTables } = require('../src/features/travel/parse.ts');
 const { schemas } = require('../src/features/travel/schema.ts');
-const { dateInput, dateSerial, editFieldType } = require('../src/features/travel/edit-values.ts');
+const { dateInput, dateSerial, editFieldType, findEditItem } = require('../src/features/travel/edit-values.ts');
 const { sampleRows } = require('../src/features/travel/sample-data.ts');
 
 test('edição converte datas e reconhece tipos do esquema', () => {
@@ -283,6 +283,12 @@ test('cliente remoto usa rotas distintas e codifica a viagem', async () => {
     await remote.enableEditing(role.toUpperCase());
     assert.equal(requests[2].url.searchParams.get('endpoint'), 'validar-edicao');
     assert.deepEqual(JSON.parse(requests[2].options.body), { senha, role });
+    await remote.fetchRemoteTabs('viagem', 'São Paulo & Rio');
+    assert.deepEqual(JSON.parse(requests[3].options.body), { senha, role, edicao: true });
+    const change = { aba: 1, linha: 2, versao: 'version', alteracoes: [{ coluna: 2, valor: 'Novo' }, { coluna: 3, valor: 12 }] };
+    await remote.saveItem(change);
+    assert.equal(requests[4].url.searchParams.get('endpoint'), 'editar');
+    assert.deepEqual(JSON.parse(requests[4].options.body), { senha, role, ...change });
     await assert.rejects(remote.enableEditing('role inválida'), /hash MD5 válido/);
   } finally {
     if (originalUrl === undefined) delete process.env.EXPO_PUBLIC_SCRIPT_URL;
@@ -333,4 +339,32 @@ test('entrada pela URL aceita hashes e remove as credenciais do endereço', asyn
     globalThis.localStorage = originalStorage;
     globalThis.window = originalWindow;
   }
+});
+
+test('edição encontra item único e protege vínculo e fórmulas', () => {
+  const header = ['Cod. Atividade', 'Atividade', 'Viagem', 'Observações', 'Início'];
+  const values = ['1', 'Museu', 'Viagem A', 'nota', 46500];
+  const item = parseTable([header, values], schemas.activities.fields, [header, values])[0];
+  const row = { numero: 2, versao: 'versao', cells: values.map((valor, index) => ({ valor, formula: index === 3 })) };
+  const sheet = { id: 1, nome: 'Activities 🚶', cabecalho: header, linhas: [row] };
+  const found = findEditItem([sheet], 'activities', item);
+  assert.equal(found.row.numero, 2);
+  assert.deepEqual(found.fields.map((field) => field.key), ['code', 'start', 'title']);
+  assert.throws(() => findEditItem([{ ...sheet, linhas: [row, { ...row, numero: 3 }] }], 'activities', item), /segurança/);
+  assert.throws(() => findEditItem([{ ...sheet, linhas: [{ ...row, cells: row.cells.map((cell, index) => index === 1 ? { ...cell, valor: 'Alterada' } : cell) }] }], 'activities', item), /segurança/);
+  assert.throws(() => findEditItem([sheet], 'activities', { ...item }), /desatualizados/);
+  const travelHeader = ['Nome', 'Data Inicial', 'ID'];
+  const travelValues = ['Viagem A', 46500, 'id'];
+  const travel = parseTable([travelHeader, travelValues], schemas.travels.fields, [travelHeader, travelValues])[0];
+  const travelSheet = { id: 2, nome: 'Travels 🧳', cabecalho: travelHeader, linhas: [{ numero: 2, versao: 'v', cells: travelValues.map((valor) => ({ valor, formula: false })) }] };
+  assert.deepEqual(findEditItem([travelSheet], 'travels', travel).fields.map((field) => field.key), ['startDate']);
+  const linkHeader = ['Atividade', 'Viagem', 'Reserva'];
+  const original = ['Museu', 'Viagem A', 'bilhete.pdf'];
+  const shown = ['Museu', 'Viagem A', 'https://example.test/bilhete.pdf'];
+  const linked = parseTable([linkHeader, shown], schemas.activities.fields, [linkHeader, original])[0];
+  const linkedSheet = { id: 3, nome: 'Activities', cabecalho: linkHeader, linhas: [
+    { numero: 2, versao: 'v', cells: ['Museu', 'Viagem A', 'outro.pdf'].map((valor) => ({ valor, formula: false })) },
+    { numero: 3, versao: 'v', cells: original.map((valor) => ({ valor, formula: false })) },
+  ] };
+  assert.equal(findEditItem([linkedSheet], 'activities', linked).row.numero, 3);
 });

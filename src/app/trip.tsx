@@ -9,6 +9,7 @@ import { ScreenBackground } from '@/components/screen-background';
 import { ThemedText } from '@/components/themed-text';
 import { BannerCard, Empty, Tabs } from '@/components/ui';
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { EditButton, EditProvider } from '@/features/travel/edit-item';
 import { billToBRL, countdownLabel, formatBRL, formatDate } from '@/features/travel/format';
 import { bannerSource } from '@/features/travel/places';
 import {
@@ -56,6 +57,7 @@ export default function TripScreen() {
   const totalBRL = trip ? trip.bills.reduce((sum, b) => sum + (billToBRL(b, trip.currencies) ?? 0), 0) : 0;
 
   return (
+    <EditProvider>
     <ScreenBackground>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -74,6 +76,7 @@ export default function TripScreen() {
                 source={bannerSource(travel.banner) ?? tripBanner(travel.name)}
                 title={travel.name}
                 leading={<TripBackButton />}
+                trailing={<EditButton table="travels" item={travel} title="viagem" inverse />}
                 subtitle={`${formatDate(travel.startDate)} → ${formatDate(travel.endDate)}\n${countdownLabel(travel.startDate, travel.endDate)} · Total estimado: ${formatBRL(totalBRL)}`}
               />
             ) : (
@@ -91,6 +94,7 @@ export default function TripScreen() {
                 <ThemedText type="smallBold" style={styles.heroText}>
                   Total estimado: {formatBRL(totalBRL)}
                 </ThemedText>
+                <EditButton table="travels" item={travel} title="viagem" inverse />
               </View>
             )}
             <Tabs tabs={TABS as { key: TabKey; label: string; icon: IconName }[]} value={tab} onChange={setTab} />
@@ -113,6 +117,7 @@ export default function TripScreen() {
       </ScrollView>
       </SafeAreaView>
     </ScreenBackground>
+    </EditProvider>
   );
 }
 
