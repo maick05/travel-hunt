@@ -47,7 +47,12 @@ export function quoteUnavailableReason(reserve: ValueReserve): string {
   return 'Cotação indisponível: confira a sigla, o tipo e a moeda do ativo';
 }
 
-export function reserveResult(reserve: ValueReserve, quote: Quote): { current: number; difference: number } | null {
+export function sheetQuote(reserve: ValueReserve): Pick<Quote, 'price' | 'currency'> | null {
+  if (reserve.currentRate === null || !Number.isFinite(reserve.currentRate) || reserve.currentRate <= 0 || !reserve.currency.trim()) return null;
+  return { price: reserve.currentRate, currency: currencyCode(reserve.currency) };
+}
+
+export function reserveResult(reserve: ValueReserve, quote: Pick<Quote, 'price' | 'currency'>): { current: number; difference: number } | null {
   if (reserve.quantity === null || !Number.isFinite(reserve.quantity) || reserve.quantity < 0 || currencyCode(reserve.currency) !== quote.currency) return null;
   const original = reserve.value ?? (reserve.usedRate === null ? null : reserve.quantity * reserve.usedRate);
   if (original === null || !Number.isFinite(original)) return null;

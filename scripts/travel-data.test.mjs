@@ -28,7 +28,7 @@ Module._load = function (id, ...args) {
   if (id === '@react-native-async-storage/async-storage') return { __esModule: true, default: storage };
   return originalLoad.call(this, id, ...args);
 };
-const { CACHE_DURATION, getQuote, quoteRequest, quoteUnavailableReason, reserveResult } = require('../src/features/travel/quotes.ts');
+const { CACHE_DURATION, getQuote, quoteRequest, quoteUnavailableReason, reserveResult, sheetQuote } = require('../src/features/travel/quotes.ts');
 Module._load = originalLoad;
 
 const travelStorage = new Map();
@@ -144,6 +144,31 @@ test('resultado de reserva compara valores na mesma moeda e exige dados suficien
   assert.equal(quoteRequest({ ...reserve, asset: 'ATIVO1' }, data.currencies), null);
   assert.match(quoteUnavailableReason({ ...reserve, asset: '120% CDI', type: 'Caixinha CDI' }), /CDI/);
   assert.match(quoteUnavailableReason({ ...reserve, asset: 'BNO', type: 'ETFs', currency: 'USD' }), /ETF em moeda estrangeira/);
+});
+
+test('cotação atual é lida da planilha sem substituir a cotação usada', () => {
+  const rows = [
+    ['Ativo', 'Quantidade Ativo', 'Valor Reservado', 'Cotação Usada', 'Moeda', 'Cotação Atual'],
+    ['BNO', 2, 100, 50, 'USD', 62.53],
+    ['U1BE34', 1, 97.43, 97.43, 'R$', 93],
+    ['COP', 5000, 8.77, 0.0017, 'R$', 0.001709362],
+    ['120% CDI', 970, 970, 1, 'R$', 'Não aplicável'],
+    ['USD', 15, 84.32, 5.47, 'R$', ''],
+  ];
+  const reserves = parseTable(rows, schemas.valueReserves.fields);
+  assert.equal(reserves[0].usedRate, 50);
+  assert.deepEqual(sheetQuote(reserves[0]), { price: 62.53, currency: 'USD' });
+  const result = reserveResult(reserves[0], sheetQuote(reserves[0]));
+  assert.equal(result.current, 125.06);
+  assert.ok(Math.abs(result.difference - 25.06) < 0.00001);
+  assert.equal(sheetQuote(reserves[1]).price, 93);
+  assert.equal(sheetQuote(reserves[2]).price, 0.001709362);
+  assert.equal(sheetQuote(reserves[3]), null);
+  assert.equal(sheetQuote(reserves[4]), null);
+  assert.equal(sheetQuote({ ...reserves[0], currentRate: 0 }), null);
+  assert.equal(sheetQuote({ ...reserves[0], currentRate: Infinity }), null);
+  assert.equal(sheetQuote({ ...reserves[0], currency: '' }), null);
+  assert.equal(sheetQuote(parseTable([['Ativo', 'Moeda'], ['BNO', 'USD']], schemas.valueReserves.fields)[0]), null);
 });
 
 test('cache de cotação dura 12 horas e não armazena respostas inválidas', async () => {

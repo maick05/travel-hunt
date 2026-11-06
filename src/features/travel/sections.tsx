@@ -1,5 +1,4 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -40,7 +39,7 @@ import {
 } from './format';
 import { buildMap, itineraryActivities } from './map-data';
 import { createPlaces, placeLabel } from './places';
-import { CACHE_DURATION, getQuote, quoteRequest, quoteUnavailableReason, reserveResult } from './quotes';
+import { reserveResult, sheetQuote } from './quotes';
 import { assetKey, hasReserveAsset } from './reserves';
 import type { Bill, Currency, Flight } from './schema';
 import type { TripData } from './use-travel-data';
@@ -799,7 +798,7 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
                 {reserve.value !== null ? (
                   <ThemedText type="smallBold">{reserveMoney(reserve.value, reserve.currency, data.currencies)}</ThemedText>
                 ) : null}
-                <ReserveQuote reserve={reserve} currencies={data.currencies} />
+                <ReserveQuote reserve={reserve} />
                 <View style={styles.metaRow}>
                   <TransportIconTip tip={[
                     reserve.id ? `Reserva: ${reserve.id}` : '',
@@ -842,25 +841,14 @@ function ReserveGroup({ reserves, bills, data }: { reserves: TripData['valueRese
   );
 }
 
-function ReserveQuote({ reserve, currencies }: { reserve: TripData['valueReserves'][number]; currencies: Currency[] }) {
-  const request = quoteRequest(reserve, currencies);
-  const quote = useQuery({
-    queryKey: ['reserve-quote', request?.kind, request?.symbol, request?.currency],
-    queryFn: () => getQuote(request!),
-    enabled: request !== null,
-    retry: false,
-    staleTime: (query) => query.state.data ? Math.max(0, query.state.data.fetchedAt + CACHE_DURATION - query.state.dataUpdatedAt) : 0,
-    refetchInterval: (query) => query.state.data ? Math.max(1000, query.state.data.fetchedAt + CACHE_DURATION - Date.now()) : false,
-  });
-  if (!request) return <ThemedText type="small" themeColor="textSecondary">{quoteUnavailableReason(reserve)}</ThemedText>;
-  if (quote.isPending) return <ThemedText type="small" themeColor="textSecondary">Consultando cotação...</ThemedText>;
-  if (quote.isError || !quote.data) return <ThemedText type="small" themeColor="textSecondary">{quote.error instanceof Error ? quote.error.message : 'Não foi possível consultar a cotação'}</ThemedText>;
-  const result = reserveResult(reserve, quote.data);
-  const price = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(quote.data.price);
-  const time = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(quote.data.marketTime);
+function ReserveQuote({ reserve }: { reserve: TripData['valueReserves'][number] }) {
+  const quote = sheetQuote(reserve);
+  if (!quote) return <ThemedText type="small" themeColor="textSecondary">Cotação indisponível na planilha</ThemedText>;
+  const result = reserveResult(reserve, quote);
+  const price = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(quote.price);
   return (
     <View>
-      <ThemedText type="small" themeColor="textSecondary">Cotação: {reserve.currency} {price} · {time}</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">Cotação: {reserve.currency} {price} · Planilha</ThemedText>
       {result ? (
         <>
           <ThemedText type="small">Valor atual: {reserveMoney(result.current, reserve.currency, [])}</ThemedText>

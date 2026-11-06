@@ -157,6 +157,7 @@ export const schemas = {
       value: number('Valor Reservado'),
       fees: number('Custo em Taxas'),
       usedRate: number('Cotação Usada'),
+      currentRate: number('Cotação Atual'),
       currency: text('Moeda'),
       status: text('Status'),
     },
