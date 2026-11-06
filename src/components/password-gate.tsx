@@ -52,7 +52,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
             <Card>
               <ThemedText type="subtitle">Travel Hunt</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                Digite a senha para abrir os dados da viagem.
+                Informe o MD5 da senha para abrir os dados da viagem.
               </ThemedText>
               <TextInput
                 value={password}
@@ -61,7 +61,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
                 secureTextEntry
                 autoFocus
                 autoCapitalize="none"
-                placeholder="Senha"
+                placeholder="MD5 da senha"
                 style={styles.input}
               />
               <TextInput
@@ -70,7 +70,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
                 onSubmitEditing={submit}
                 secureTextEntry
                 autoCapitalize="none"
-                placeholder="Credencial de edição (opcional)"
+                placeholder="MD5 de edição (opcional)"
                 style={styles.input}
               />
               {error ? (

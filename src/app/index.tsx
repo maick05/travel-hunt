@@ -28,7 +28,7 @@ export default function TripsScreen() {
           <Link href={'/edit' as Href}><ThemedText type="link">Editar planilha</ThemedText></Link>
         ) : showRole ? (
           <View style={styles.list}>
-            <TextInput value={role} onChangeText={setRole} secureTextEntry autoCapitalize="none" placeholder="Credencial de edição" style={styles.roleInput} />
+            <TextInput value={role} onChangeText={setRole} secureTextEntry autoCapitalize="none" placeholder="MD5 de edição" style={styles.roleInput} />
             {roleError ? <ThemedText>{roleError}</ThemedText> : null}
             <Pressable onPress={async () => { try { await enableEditing(role); setRole(''); setEditing(true); } catch (e) { setRoleError((e as Error).message); } }}>
               <ThemedText type="link">Habilitar edição</ThemedText>

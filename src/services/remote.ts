@@ -12,7 +12,7 @@ const WRONG_PASSWORD = 'Senha incorreta.';
 
 type Tabs = Record<string, SheetRows>;
 
-// Só o hash MD5 da senha circula e fica guardado; a senha digitada não é armazenada.
+// As credenciais recebidas já são hashes MD5.
 let hash: string | null = null;
 let editHash: string | null = null;
 let prefetched: { tabs: Tabs; fetchedAt: number } | null = null;
@@ -42,15 +42,23 @@ async function open(senhaMd5: string): Promise<void> {
 }
 
 export async function unlock(senha: string, role = ''): Promise<void> {
-  await open(md5(senha));
-  if (role) await enableEditing(role);
+  const senhaMd5 = validarHash(senha);
+  const roleMd5 = role.trim() ? validarHash(role) : '';
+  await open(senhaMd5);
+  if (roleMd5) await enableEditing(roleMd5);
 }
 
 export async function enableEditing(role: string): Promise<void> {
-  const candidate = md5(role);
+  const candidate = validarHash(role);
   await editRequest('validar-edicao', candidate);
   editHash = candidate;
   localStorage.setItem(EDIT_STORAGE_KEY, candidate);
+}
+
+function validarHash(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(normalized)) throw new Error('Informe um hash MD5 válido.');
+  return normalized;
 }
 
 export function canEdit(): boolean {
@@ -105,14 +113,27 @@ export async function saveCell(payload: { aba: number; linha: number; coluna: nu
 export async function unlockFromUrl(): Promise<boolean> {
   const url = new URL(window.location.href);
   const senhaMd5 = url.searchParams.get('apiKey')?.toLowerCase();
-  if (!senhaMd5) return false;
+  const roleMd5 = url.searchParams.get('role');
+  if (!senhaMd5 && roleMd5 === null) return false;
 
   url.searchParams.delete('apiKey');
+  url.searchParams.delete('role');
   window.history.replaceState(null, '', url.pathname + url.search + url.hash);
 
-  if (!/^[0-9a-f]{32}$/.test(senhaMd5)) return false;
+  if (roleMd5 !== null) {
+    editHash = null;
+    localStorage.removeItem(EDIT_STORAGE_KEY);
+  }
   try {
-    await open(senhaMd5);
+    if (senhaMd5) {
+      if (!/^[0-9a-f]{32}$/.test(senhaMd5)) return false;
+      await open(senhaMd5);
+    } else if (!await unlockStored()) {
+      return false;
+    }
+    if (roleMd5 !== null) {
+      try { await enableEditing(roleMd5); } catch {}
+    }
     return true;
   } catch {
     return false;

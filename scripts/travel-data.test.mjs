@@ -265,7 +265,10 @@ test('cliente remoto usa rotas distintas e codifica a viagem', async () => {
   };
   try {
     const remote = require('../src/services/remote.ts');
-    await remote.unlock('senha de teste');
+    const senha = '0123456789abcdef0123456789abcdef';
+    const role = 'abcdef0123456789abcdef0123456789';
+    await assert.rejects(remote.unlock('senha de teste'), /hash MD5 válido/);
+    await remote.unlock(senha.toUpperCase());
     assert.equal(requests[0].url.searchParams.get('endpoint'), 'viagens');
     assert.equal(requests[0].url.searchParams.has('senha'), false);
     const first = await remote.fetchRemoteTabs('viagens');
@@ -276,11 +279,58 @@ test('cliente remoto usa rotas distintas e codifica a viagem', async () => {
     assert.equal(requests[1].url.searchParams.get('endpoint'), 'viagem');
     assert.equal(requests[1].url.searchParams.get('viagem'), 'São Paulo & Rio');
     assert.equal(requests[1].options.headers['Content-Type'], 'text/plain;charset=utf-8');
-    assert.match(JSON.parse(requests[1].options.body).senha, /^[a-f0-9]{32}$/);
+    assert.equal(JSON.parse(requests[1].options.body).senha, senha);
+    await remote.enableEditing(role.toUpperCase());
+    assert.equal(requests[2].url.searchParams.get('endpoint'), 'validar-edicao');
+    assert.deepEqual(JSON.parse(requests[2].options.body), { senha, role });
+    await assert.rejects(remote.enableEditing('role inválida'), /hash MD5 válido/);
   } finally {
     if (originalUrl === undefined) delete process.env.EXPO_PUBLIC_SCRIPT_URL;
     else process.env.EXPO_PUBLIC_SCRIPT_URL = originalUrl;
     globalThis.fetch = originalFetch;
     globalThis.localStorage = originalStorage;
+  }
+});
+
+test('entrada pela URL aceita hashes e remove as credenciais do endereço', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalStorage = globalThis.localStorage;
+  const originalWindow = globalThis.window;
+  const saved = new Map();
+  const requests = [];
+  let cleaned = '';
+  let rejectRole = false;
+  const senha = '0123456789abcdef0123456789abcdef';
+  const role = 'abcdef0123456789abcdef0123456789';
+  globalThis.localStorage = { setItem: (key, value) => saved.set(key, value), getItem: (key) => saved.get(key) ?? null, removeItem: (key) => saved.delete(key) };
+  globalThis.window = { location: { href: `https://example.test/?apiKey=${senha}&role=${role}&view=1` }, history: { replaceState: (_state, _title, url) => { cleaned = url; } } };
+  globalThis.fetch = async (url, options) => {
+    requests.push({ endpoint: new URL(url).searchParams.get('endpoint'), body: JSON.parse(options.body) });
+    return { ok: true, json: async () => rejectRole ? { erro: 'role' } : { abas: {}, edicao: true } };
+  };
+  try {
+    const remote = require('../src/services/remote.ts');
+    assert.equal(await remote.unlockFromUrl(), true);
+    assert.equal(cleaned, '/?view=1');
+    assert.deepEqual(requests, [{ endpoint: 'viagens', body: { senha } }, { endpoint: 'validar-edicao', body: { senha, role } }]);
+    assert.equal(saved.get('travel-hunt:senha-md5'), senha);
+    assert.equal(saved.get('travel-hunt:edicao-md5'), role);
+    assert.equal(remote.canEdit(), true);
+    globalThis.window.location.href = 'https://example.test/?role=invalida';
+    assert.equal(await remote.unlockFromUrl(), true);
+    assert.equal(cleaned, '/');
+    assert.equal(remote.canEdit(), false);
+    assert.equal(saved.has('travel-hunt:edicao-md5'), false);
+    globalThis.window.location.href = `https://example.test/?role=${role}`;
+    assert.equal(await remote.unlockFromUrl(), true);
+    assert.equal(remote.canEdit(), true);
+    rejectRole = true;
+    assert.equal(await remote.unlockFromUrl(), true);
+    assert.equal(remote.canEdit(), false);
+    assert.equal(saved.has('travel-hunt:edicao-md5'), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.localStorage = originalStorage;
+    globalThis.window = originalWindow;
   }
 });
