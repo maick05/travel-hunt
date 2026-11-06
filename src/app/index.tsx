@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, type Href } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
@@ -25,7 +25,7 @@ export default function TripsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="title">Viagens</ThemedText>
         {USE_REMOTE && (editing ? (
-          <Link href="/edit"><ThemedText type="link">Editar planilha</ThemedText></Link>
+          <Link href={'/edit' as Href}><ThemedText type="link">Editar planilha</ThemedText></Link>
         ) : showRole ? (
           <View style={styles.list}>
             <TextInput value={role} onChangeText={setRole} secureTextEntry autoCapitalize="none" placeholder="Credencial de edição" style={styles.roleInput} />
