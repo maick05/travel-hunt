@@ -365,9 +365,9 @@ const styles = StyleSheet.create({
     backgroundColor: c.accentSoft,
   },
   accordionTitle: { fontSize: 22, lineHeight: 28 },
-  banner: { minHeight: 150, borderRadius: Spacing.three, overflow: 'hidden', backgroundColor: c.accentSoft },
+  banner: { minHeight: 180, borderRadius: Spacing.three, overflow: 'hidden', backgroundColor: c.accentSoft },
   bannerImage: { flex: 1 },
-  bannerCompact: { minHeight: 104 },
+  bannerCompact: { minHeight: 128 },
   // Subdivisão da viagem: recuada e com uma linha de destaque à esquerda.
   accordionLevel: { marginLeft: Spacing.three, paddingLeft: Spacing.two, borderLeftWidth: 3, borderLeftColor: c.accent },
   bannerOverlay: {
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: Spacing.two,
     padding: Spacing.three,
-    backgroundColor: 'rgba(0, 0, 0, 0.62)',
+    backgroundColor: 'rgba(0, 0, 0, 0.52)',
   },
   bannerText: { color: '#FFFFFF', textShadowColor: 'rgba(0, 0, 0, 0.75)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   bannerFlag: { position: 'absolute', top: Spacing.three, right: Spacing.three },
