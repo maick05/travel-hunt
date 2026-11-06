@@ -44,6 +44,12 @@ Os banners usam cache de imagem em memória no aplicativo, sujeito ao descarte p
 
 Para medir, abra **Execuções** no Apps Script e consulte os registros `travel-hunt-desempenho`: `leituraMs`, `filtroMs`, `chipsMs`, `conversaoMs`, `driveMs` e `totalMs` são tempos em milissegundos; `abasEmCache`, `chipsEmCache` e `leituraAlternativa` indicam o caminho usado. Compare uma primeira consulta e consultas repetidas, além do tempo total no navegador: a diferença pode incluir inicialização e comunicação com o Google, não apenas o processamento registrado.
 
+## Edição da planilha
+
+Configure `ROLE_EDICAO` nas propriedades do script com uma frase longa, diferente de `SENHA`, e publique uma nova versão do Web App. A credencial opcional de edição pode ser informada ao entrar ou em **Habilitar edição**. O servidor valida as duas credenciais antes de disponibilizar as abas e novamente em cada gravação. Os campos são salvos individualmente; células com fórmula são protegidas. Se a linha ou o cabeçalho mudou desde a leitura, atualize os dados antes de tentar novamente. Campos de data conhecidos usam o formato `AAAA-MM-DD HH:mm`. O editor apresenta linhas existentes com dados, não cria nem remove linhas.
+
+O MD5 armazenado no navegador funciona como uma credencial reutilizável, não como proteção contra roubo: quem obtiver ambos os hashes pode editar a planilha. Use frases fortes, evite dispositivos compartilhados e considere autenticação própria e armazenamento seguro para uso com dados sensíveis. Depois de uma gravação, o cache da aba compartilhada e o cache local da lista são invalidados; outros dispositivos ainda podem conservar sua lista de viagens por até 24 horas.
+
 ## Cotações das reservas
 
 As reservas usam o valor numérico da coluna `Cotação Atual` da aba ValueReserve, na moeda indicada na própria reserva. Essa coluna pode ser preenchida pela fórmula da planilha; valores vazios, textos e números não positivos são tratados como cotação indisponível. O aplicativo não consulta uma API externa de cotações nem informa um horário de mercado, pois a planilha não fornece esse horário.

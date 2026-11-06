@@ -5,13 +5,14 @@ import { ScreenBackground } from '@/components/screen-background';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { unlock, unlockFromUrl, unlockStored, USE_REMOTE } from '@/services/remote';
+import { restoreEditing, unlock, unlockFromUrl, unlockStored, USE_REMOTE } from '@/services/remote';
 
 /** Tela de senha: os dados do build publicado só abrem com a senha que criptografou o arquivo. */
 export function PasswordGate({ children }: { children: React.ReactNode }) {
   const [unlocked, setUnlocked] = useState(!USE_REMOTE);
   const [checking, setChecking] = useState(USE_REMOTE);
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -19,7 +20,8 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
     if (!USE_REMOTE) return;
     unlockFromUrl()
       .then((ok) => ok || unlockStored())
-      .then((ok) => {
+      .then(async (ok) => {
+        if (ok) await restoreEditing();
         setUnlocked(ok);
         setChecking(false);
       });
@@ -31,7 +33,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
     setBusy(true);
     setError('');
     try {
-      await unlock(password);
+      await unlock(password, role);
       setUnlocked(true);
     } catch (e) {
       setError((e as Error).message);
@@ -60,6 +62,15 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
                 autoFocus
                 autoCapitalize="none"
                 placeholder="Senha"
+                style={styles.input}
+              />
+              <TextInput
+                value={role}
+                onChangeText={setRole}
+                onSubmitEditing={submit}
+                secureTextEntry
+                autoCapitalize="none"
+                placeholder="Credencial de edição (opcional)"
                 style={styles.input}
               />
               {error ? (

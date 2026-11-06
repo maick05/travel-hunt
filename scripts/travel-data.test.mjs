@@ -12,7 +12,17 @@ require.extensions['.ts'] = (module, filename) => {
 
 const { parseTable, parseTables } = require('../src/features/travel/parse.ts');
 const { schemas } = require('../src/features/travel/schema.ts');
+const { dateInput, dateSerial, editFieldType } = require('../src/features/travel/edit-values.ts');
 const { sampleRows } = require('../src/features/travel/sample-data.ts');
+
+test('edição converte datas e reconhece tipos do esquema', () => {
+  assert.equal(dateInput(dateSerial('2027-02-28 15:32:45')), '2027-02-28 15:32:45');
+  assert.equal(dateSerial('2027-02-30'), null);
+  assert.equal(dateSerial('2027-01-01 25:00'), null);
+  assert.equal(editFieldType('Money 💴', 'Valor'), 'number');
+  assert.equal(editFieldType('Activities 🚶', 'Início'), 'date');
+  assert.equal(editFieldType('Activities 🚶', 'Reservado (Ticket/Valor)'), 'boolean');
+});
 const { hasReserveAsset } = require('../src/features/travel/reserves.ts');
 const { billToBRL } = require('../src/features/travel/format.ts');
 const { mealCostsByType } = require('../src/features/travel/costs.ts');

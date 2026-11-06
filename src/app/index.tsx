@@ -1,5 +1,6 @@
 import { Link } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { ScreenBackground } from '@/components/screen-background';
 import { ThemedText } from '@/components/themed-text';
@@ -10,15 +11,30 @@ import { countdownLabel, formatDate } from '@/features/travel/format';
 import { bannerSource } from '@/features/travel/places';
 import { tripBanner } from '@/features/travel/trip-banners';
 import { useTravels } from '@/features/travel/use-travel-data';
-import { USE_REMOTE } from '@/services/remote';
+import { canEdit, enableEditing, USE_REMOTE } from '@/services/remote';
 
 export default function TripsScreen() {
   const { data, isLoading, error, refetch } = useTravels();
+  const [editing, setEditing] = useState(canEdit());
+  const [showRole, setShowRole] = useState(false);
+  const [role, setRole] = useState('');
+  const [roleError, setRoleError] = useState('');
 
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="title">Viagens</ThemedText>
+        {USE_REMOTE && (editing ? (
+          <Link href="/edit"><ThemedText type="link">Editar planilha</ThemedText></Link>
+        ) : showRole ? (
+          <View style={styles.list}>
+            <TextInput value={role} onChangeText={setRole} secureTextEntry autoCapitalize="none" placeholder="Credencial de edição" style={styles.roleInput} />
+            {roleError ? <ThemedText>{roleError}</ThemedText> : null}
+            <Pressable onPress={async () => { try { await enableEditing(role); setRole(''); setEditing(true); } catch (e) { setRoleError((e as Error).message); } }}>
+              <ThemedText type="link">Habilitar edição</ThemedText>
+            </Pressable>
+          </View>
+        ) : <Pressable onPress={() => setShowRole(true)}><ThemedText type="link">Habilitar edição</ThemedText></Pressable>)}
         {!isSheetsConfigured && !USE_REMOTE && (
           <ThemedText type="small" themeColor="textSecondary">
             Exibindo dados de exemplo. Configure EXPO_PUBLIC_SHEETS_ID e EXPO_PUBLIC_SHEETS_API_KEY para usar sua planilha.
@@ -84,6 +100,7 @@ const styles = StyleSheet.create({
   },
   list: { gap: Spacing.two },
   pressed: { opacity: 0.85 },
+  roleInput: { borderWidth: 1, borderColor: '#B9C1C3', borderRadius: 4, padding: 10, backgroundColor: '#FFFFFF' },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   flex: { flex: 1 },
 });

@@ -16,13 +16,14 @@ function doGet() {
 
 function doPost(e) {
   const iniciado = Date.now();
-  let enviada = '';
+  let corpo = {};
   try {
-    enviada = String(JSON.parse(e.postData.contents).senha || '').toLowerCase();
+    corpo = JSON.parse(e.postData.contents) || {};
   } catch (err) {
     // corpo inválido: tratado como senha vazia
   }
 
+  const enviada = String(corpo.senha || '').toLowerCase();
   const senha = PropertiesService.getScriptProperties().getProperty('SENHA');
   if (!senha || !iguais(enviada, md5(senha))) {
     Utilities.sleep(2000); // dificulta tentativas em série
@@ -30,6 +31,17 @@ function doPost(e) {
   }
   const endpoint = e.parameter && e.parameter.endpoint;
   const viagem = String((e.parameter && e.parameter.viagem) || '').trim();
+  if (['validar-edicao', 'dados-edicao', 'editar'].includes(endpoint)) {
+    const role = PropertiesService.getScriptProperties().getProperty('ROLE_EDICAO');
+    const enviadaRole = String(corpo.role || '').toLowerCase();
+    if (!role || !iguais(enviadaRole, md5(role))) {
+      Utilities.sleep(2000);
+      return resposta({ erro: 'role' });
+    }
+    if (endpoint === 'validar-edicao') return resposta({ edicao: true });
+    if (endpoint === 'dados-edicao') return resposta(dadosEdicao());
+    return resposta(editarCelula(corpo));
+  }
   if (endpoint !== 'viagens' && endpoint !== 'viagem') return resposta({ erro: 'Endpoint inválido.' });
   if (endpoint === 'viagem' && !viagem) return resposta({ erro: 'Informe a viagem.' });
   const metricas = { endpoint, abasEmCache: 0, chipsEmCache: false, driveMs: 0 };
@@ -55,6 +67,56 @@ function iguais(a, b) {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+function linhaEdicao(valores, formulas, fuso, cabecalho) {
+  const cells = valores.map((valor, index) => ({
+    valor: valor instanceof Date ? serial(valor, fuso) : valor,
+    formula: Boolean(formulas[index]),
+  }));
+  return { cells, versao: md5(JSON.stringify([cabecalho, cells, formulas])) };
+}
+
+function dadosEdicao() {
+  const ss = SpreadsheetApp.getActive();
+  const fuso = ss.getSpreadsheetTimeZone();
+  const abas = ss.getSheets().map((sheet) => {
+    const range = sheet.getDataRange();
+    const values = range.getValues();
+    const formulas = range.getFormulas();
+    return {
+      nome: sheet.getName(), id: sheet.getSheetId(), cabecalho: values[0] || [],
+      linhas: values.slice(1).map((row, index) => ({ numero: index + 2, ...linhaEdicao(row, formulas[index + 1], fuso, values[0]) })),
+    };
+  });
+  return { abas };
+}
+
+function editarCelula(corpo) {
+  const { aba, linha, coluna, versao, valor } = corpo;
+  if (!Number.isInteger(aba) || !Number.isInteger(linha) || linha < 2 || !Number.isInteger(coluna) || coluna < 1 ||
+      typeof versao !== 'string' || !(typeof valor === 'string' || typeof valor === 'number' || typeof valor === 'boolean') ||
+      (typeof valor === 'number' && !Number.isFinite(valor)) || (typeof valor === 'string' && valor.startsWith('='))) {
+    return { erro: 'Alteração inválida.' };
+  }
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return { erro: 'Planilha ocupada. Tente novamente.' };
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const sheet = ss.getSheets().find((item) => item.getSheetId() === aba);
+    if (!sheet || linha > sheet.getLastRow() || coluna > sheet.getLastColumn()) return { erro: 'Célula não encontrada.' };
+    const range = sheet.getRange(linha, 1, 1, sheet.getLastColumn());
+    const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const current = linhaEdicao(range.getValues()[0], range.getFormulas()[0], ss.getSpreadsheetTimeZone(), header);
+    if (current.versao !== versao) return { erro: 'A linha foi alterada. Atualize os dados e tente novamente.' };
+    if (current.cells[coluna - 1].formula) return { erro: 'Células com fórmula não podem ser alteradas.' };
+    sheet.getRange(linha, coluna).setValue(valor);
+    SpreadsheetApp.flush();
+    try { CacheService.getScriptCache().remove(chaveCache('aba', [ss.getId(), sheet.getName()])); } catch (e) {}
+    return { alterado: true };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function chaveCache(tipo, valor) {

@@ -23,18 +23,28 @@ function service(changeRows = () => {}, useBatch = false, chipSheets = [], optio
   let time = 0;
   let chipFailures = options.chipFailures || 0;
   let driveCalls = 0;
-  const sheets = Object.entries(rows).map(([name, values]) => ({
+  const sheets = Object.entries(rows).map(([name, values], index) => ({
     getName: () => name,
-    getDataRange: () => ({ getValues: () => { reads.push(name); return values; } }),
+    getSheetId: () => index + 1,
+    getLastRow: () => values.length,
+    getLastColumn: () => values[0].length,
+    getDataRange: () => ({ getValues: () => { reads.push(name); return values; }, getFormulas: () => values.map((row) => row.map((cell) => typeof cell === 'string' && cell.startsWith('=') ? cell : '')) }),
+    getRange: (row, column, _height, width = 1) => ({
+      getValues: () => [values[row - 1].slice(column - 1, column - 1 + width)],
+      getFormulas: () => [values[row - 1].slice(column - 1, column - 1 + width).map((cell) => typeof cell === 'string' && cell.startsWith('=') ? cell : '')],
+      setValue: (value) => { values[row - 1][column - 1] = value; },
+    }),
   }));
   const spreadsheet = { getSheets: () => sheets, getSpreadsheetTimeZone: () => 'UTC', getId: () => 'id' };
   const context = vm.createContext({
-    SpreadsheetApp: { getActive: () => spreadsheet },
+    SpreadsheetApp: { getActive: () => spreadsheet, flush: () => {} },
+    LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
     CacheService: { getScriptCache: () => {
       if (options.cacheFailure) throw new Error('indisponível');
       return {
       get: (key) => { const entry = cache.get(key); return entry && entry.expires > time ? entry.value : null; },
       put: (key, value, ttl) => cache.set(key, { value, expires: time + ttl * 1000 }),
+      remove: (key) => cache.delete(key),
       };
     } },
     DriveApp: { getFilesByName: (name) => {
@@ -55,13 +65,13 @@ function service(changeRows = () => {}, useBatch = false, chipSheets = [], optio
         return { valueRanges: options.ranges.map((range) => ({ values: rows[range.slice(1, -1).replace(/''/g, "'")] })) };
       } } } : {}),
     } },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: () => 'senha' }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (name) => name === 'SENHA' ? 'senha' : options.role }) },
     Utilities: { sleep: () => {} },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (text) => ({ setMimeType: () => JSON.parse(text) }) },
   });
   vm.runInContext(source, context);
   context.md5 = (text) => text === 'senha' ? 'hash' : createHash('md5').update(text).digest('hex');
-  const post = (parameter, senha = 'hash') => context.doPost({ parameter, postData: { contents: JSON.stringify({ senha }) } });
+  const post = (parameter, senha = 'hash', role, extra = {}) => context.doPost({ parameter, postData: { contents: JSON.stringify({ senha, role, ...extra }) } });
   return { post, reads, rows, chipRequests, batchRequests, logs, advance: (milliseconds) => { time += milliseconds; }, getDriveCalls: () => driveCalls };
 }
 
@@ -188,4 +198,46 @@ test('serviço continua funcionando quando o cache está indisponível', () => {
   assert.deepEqual(instance.post({ endpoint: 'viagem', viagem: 'Viagem A' }).abas, first.abas);
   assert.equal(instance.chipRequests.length, 2);
   assert.ok(instance.batchRequests[1].includes("'Currency 🪙'"));
+});
+
+test('validação de edição exige as duas credenciais e uma role configurada', () => {
+  const instance = service(() => {}, false, [], { role: 'editor' });
+  const role = createHash('md5').update('editor').digest('hex');
+  assert.equal(instance.post({ endpoint: 'validar-edicao' }, 'errada', role).erro, 'senha');
+  assert.equal(instance.post({ endpoint: 'validar-edicao' }, 'hash').erro, 'role');
+  assert.equal(instance.post({ endpoint: 'validar-edicao' }, 'hash', 'incorreta').erro, 'role');
+  assert.equal(instance.post({ endpoint: 'validar-edicao' }, 'hash', role).edicao, true);
+  assert.equal(service().post({ endpoint: 'validar-edicao' }, 'hash', role).erro, 'role');
+  assert.deepEqual(instance.reads, []);
+});
+
+test('edição valida credenciais, conflito e fórmulas antes de alterar uma célula', () => {
+  const instance = service((rows) => { rows['Travels 🧳'][1][1] = '=TODAY()'; }, false, [], { role: 'editor' });
+  const role = createHash('md5').update('editor').digest('hex');
+  const data = instance.post({ endpoint: 'dados-edicao' }, 'hash', role);
+  const sheet = data.abas[0];
+  const version = sheet.linhas[0].versao;
+  const request = { aba: sheet.id, linha: 2, coluna: 1, versao: version, valor: 'Nova viagem' };
+  assert.equal(instance.post({ endpoint: 'editar' }, 'hash', 'errada', request).erro, 'role');
+  assert.equal(instance.post({ endpoint: 'dados-edicao' }, 'hash', 'errada').erro, 'role');
+  assert.equal(instance.post({ endpoint: 'editar' }, 'errada', role, request).erro, 'senha');
+  assert.equal(instance.post({ endpoint: 'editar' }, 'hash', role, { ...request, valor: '=1+1' }).erro, 'Alteração inválida.');
+  assert.equal(instance.post({ endpoint: 'editar' }, 'hash', role, { ...request, coluna: 2 }).erro, 'Células com fórmula não podem ser alteradas.');
+  assert.equal(instance.post({ endpoint: 'editar' }, 'hash', role, request).alterado, true);
+  assert.equal(instance.rows['Travels 🧳'][1][0], 'Nova viagem');
+  assert.match(instance.post({ endpoint: 'editar' }, 'hash', role, request).erro, /alterada/);
+  assert.equal(instance.rows['Travels 🧳'][1][1], '=TODAY()');
+});
+
+test('edição detecta alteração no cabeçalho e invalida cache da aba compartilhada', () => {
+  const instance = service(() => {}, true, [], { role: 'editor' });
+  const role = createHash('md5').update('editor').digest('hex');
+  instance.post({ endpoint: 'viagem', viagem: 'Viagem A' });
+  const sheet = instance.post({ endpoint: 'dados-edicao' }, 'hash', role).abas.find((item) => item.nome === 'Currency 🪙');
+  const request = { aba: sheet.id, linha: 2, coluna: 1, versao: sheet.linhas[0].versao, valor: 'BRL' };
+  instance.rows['Currency 🪙'][0][0] = 'Código';
+  assert.match(instance.post({ endpoint: 'editar' }, 'hash', role, request).erro, /alterada/);
+  instance.rows['Currency 🪙'][0][0] = 'Sigla';
+  assert.equal(instance.post({ endpoint: 'editar' }, 'hash', role, request).alterado, true);
+  assert.equal(instance.post({ endpoint: 'viagem', viagem: 'Viagem A' }).abas['Currency 🪙'][1][0], 'BRL');
 });

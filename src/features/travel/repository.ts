@@ -15,6 +15,11 @@ const OPTIONAL_TABS: TableKey[] = ['locals', 'coords', 'valueReserves'];
 
 export const TRAVEL_CACHE_DURATION = 24 * 60 * 60 * 1000;
 
+export async function clearTravelCache(): Promise<void> {
+  if (!USE_REMOTE) return;
+  try { await AsyncStorage.removeItem(`travel-hunt:travels:v1:${remoteCacheScope()}`); } catch {}
+}
+
 function parseTravels(rows: SheetRows): Travel[] {
   return parseTable(rows, schemas.travels.fields).sort((first, second) =>
     (first.startDate ?? Infinity) - (second.startDate ?? Infinity));
