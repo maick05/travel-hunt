@@ -63,6 +63,13 @@ export function EditProvider({ children }: { children: React.ReactNode }) {
     finally { setBusy(false); }
   }
 
+  async function refresh() {
+    setBusy(true);
+    try { await queryClient.invalidateQueries({ queryKey: ['travel-data'] }); setTarget(null); }
+    catch (cause) { setError((cause as Error).message); }
+    finally { setBusy(false); }
+  }
+
   return (
     <EditContext.Provider value={canEdit() ? (next) => void open(next) : null}>
       {children}
@@ -94,9 +101,10 @@ export function EditProvider({ children }: { children: React.ReactNode }) {
               {error ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
             </ScrollView>
             {!found && error ? <View style={styles.actions}>
-              <Pressable accessibilityRole="button" onPress={async () => { setBusy(true); await queryClient.invalidateQueries({ queryKey: ['travel-data'] }); setBusy(false); setTarget(null); }} style={styles.cancel} disabled={busy}><ThemedText type="link">Atualizar dados</ThemedText></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => void refresh()} style={styles.cancel} disabled={busy}><ThemedText type="link">Atualizar dados</ThemedText></Pressable>
             </View> : null}
             {found ? <View style={styles.actions}>
+              {error ? <Pressable accessibilityRole="button" disabled={busy} onPress={() => void refresh()} style={styles.cancel}><ThemedText type="link">Atualizar dados</ThemedText></Pressable> : null}
               <Pressable accessibilityRole="button" disabled={busy} onPress={() => setTarget(null)} style={styles.cancel}><ThemedText>Cancelar</ThemedText></Pressable>
               <Pressable accessibilityRole="button" disabled={busy || !found.fields.length} onPress={() => void save()} style={[styles.save, busy && styles.disabled]}>
                 {busy ? <ActivityIndicator color="#FFFFFF" /> : <><MaterialCommunityIcons name="content-save-outline" size={20} color="#FFFFFF" /><ThemedText style={styles.saveText}>Salvar</ThemedText></>}
@@ -131,7 +139,7 @@ const styles = StyleSheet.create({
   field: { gap: Spacing.one },
   input: { minHeight: 44, borderWidth: 1, borderColor: Colors.light.border, borderRadius: 4, padding: Spacing.two, backgroundColor: '#FFFFFF', color: Colors.light.text },
   error: { color: '#B3261E' },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: Spacing.two, padding: Spacing.three, borderTopWidth: 1, borderColor: Colors.light.border },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: Spacing.two, padding: Spacing.three, borderTopWidth: 1, borderColor: Colors.light.border },
   cancel: { padding: Spacing.two },
   save: { minHeight: 44, minWidth: 100, flexDirection: 'row', gap: Spacing.one, alignItems: 'center', justifyContent: 'center', borderRadius: 4, paddingHorizontal: Spacing.three, backgroundColor: Colors.light.accent },
   saveText: { color: '#FFFFFF' },
