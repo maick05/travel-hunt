@@ -34,7 +34,15 @@ As respostas contêm `atualizadoEm` e `abas`. As linhas com coluna `Viagem`, ass
 
 A lista fica armazenada no dispositivo por até 24 horas, isolada por fonte e credencial; os detalhes não usam esse cache persistente. Ao entrar com uma senha, o aplicativo ainda a valida no servidor. Quando configurado com acesso direto à Google Sheets API, o filtro dos detalhes ocorre no aplicativo, pois essa API não implementa os endpoints acima.
 
-Para atualizar o serviço existente, copie [scripts/apps-script/api.gs](scripts/apps-script/api.gs) para o projeto Apps Script e publique uma nova versão da implantação do Web App. Configure `EXPO_PUBLIC_SCRIPT_URL` com a URL `/exec` da implantação; a alteração no repositório, sozinha, não atualiza o serviço publicado.
+Para atualizar o serviço existente, copie [scripts/apps-script/api.gs](scripts/apps-script/api.gs) para o projeto Apps Script. Em **Serviços > +**, ative **Google Sheets API** e autorize os acessos solicitados ao Sheets e ao Drive. Publique uma nova versão da implantação do Web App e configure `EXPO_PUBLIC_SCRIPT_URL` com sua URL `/exec`; a alteração no repositório, sozinha, não atualiza o serviço publicado.
+
+O serviço lê as abas em lote e filtra as linhas antes de buscar links de arquivos. Sem o serviço avançado do Sheets, usa a leitura individual das abas e procura arquivos pelo nome no Drive; chips que não puderem ser resolvidos continuam como texto. A consulta de chips fica limitada às colunas com texto nas linhas selecionadas, preservando suporte a links em colunas variadas.
+
+As abas Locals, Currency e Coordenadas e os links resolvidos de chips e arquivos usam cache do Apps Script por até 10 minutos. A autenticação ocorre antes do acesso ao cache; ele pode ser removido antecipadamente ou ficar indisponível, caso em que os dados são lidos novamente. Alterações nessas abas ou links podem demorar até 10 minutos para aparecer. O restante dos detalhes e `Cotação Atual` de ValueReserve não usam esse cache. `atualizadoEm` indica a hora da resposta, não a hora de leitura de cada item em cache.
+
+Os banners usam cache de imagem em memória no aplicativo, sujeito ao descarte pelo sistema e sem prazo fixo; na web, vale o cache HTTP do navegador. Imagens do Drive empacotadas no aplicativo continuam dependendo da geração de assets para serem atualizadas.
+
+Para medir, abra **Execuções** no Apps Script e consulte os registros `travel-hunt-desempenho`: `leituraMs`, `filtroMs`, `chipsMs`, `conversaoMs`, `driveMs` e `totalMs` são tempos em milissegundos; `abasEmCache`, `chipsEmCache` e `leituraAlternativa` indicam o caminho usado. Compare uma primeira consulta e consultas repetidas, além do tempo total no navegador: a diferença pode incluir inicialização e comunicação com o Google, não apenas o processamento registrado.
 
 ## Cotações das reservas
 

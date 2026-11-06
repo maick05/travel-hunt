@@ -1,9 +1,9 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as flags from 'country-flag-icons/string/3x2';
-import { Image } from 'expo-image';
+import { Image, ImageBackground, type ImageProps } from 'expo-image';
 import countryNames from 'i18n-iso-countries/langs/pt.json';
 import { useState } from 'react';
-import { ImageBackground, Platform, Pressable, ScrollView, StyleSheet, View, type ImageSourcePropType } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View, type ImageSourcePropType } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
 import type { IconName } from '@/components/brand';
@@ -12,14 +12,14 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import type { Cost } from '@/features/travel/costs';
 import {
-    billToBRL,
-    feesNote,
-    formatAmount,
-    formatBRL,
-    mapsUrl,
-    rateNote,
-    statusTone,
-    type StatusTone,
+  billToBRL,
+  feesNote,
+  formatAmount,
+  formatBRL,
+  mapsUrl,
+  rateNote,
+  statusTone,
+  type StatusTone,
 } from '@/features/travel/format';
 import { bannerSource, isLink, placeLabel } from '@/features/travel/places';
 import type { Currency } from '@/features/travel/schema';
@@ -102,7 +102,7 @@ export function BannerCard({
 }) {
   return (
     <View style={[styles.banner, compact && styles.bannerCompact]}>
-      <ImageBackground source={source ?? {}} resizeMode="cover" style={styles.bannerImage}>
+      <ImageBackground source={source as ImageProps['source']} contentFit="cover" cachePolicy="memory" style={styles.bannerImage}>
         <View style={[styles.bannerOverlay, !!leading && styles.bannerOverlayLeading]}>
           {leading ? <View style={styles.bannerLeading}>{leading}</View> : null}
           {country ? <View style={styles.bannerFlag}><CountryFlag country={country} /></View> : null}
