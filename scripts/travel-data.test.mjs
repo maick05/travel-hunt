@@ -125,6 +125,36 @@ test('ponto inicial permanece no mapa sem ocultar uma volta posterior', () => {
   assert.equal(itineraryActivities(data).length, 3);
 });
 
+test('transporte interno não gera rota, mas mantém os pontos e outros trajetos', () => {
+  const data = parseTables(sampleRows);
+  const origin = 'https://maps.app.goo.gl/inicio';
+  const internal = 'https://maps.app.goo.gl/interno';
+  const destination = 'https://maps.app.goo.gl/fim';
+  registerCoords([
+    { link: origin, name: 'Início', lat: 41.38, lng: 2.17 },
+    { link: internal, name: 'Interno', lat: 41.39, lng: 2.18 },
+    { link: destination, name: 'Destino', lat: 41.40, lng: 2.19 },
+  ]);
+  data.locals = [{ ...data.locals[0], name: 'Barcelona', link: origin }];
+  const activity = data.activities[0];
+  data.activities = [
+    { ...activity, title: 'Início', place: origin, transportMode: '', transportRef: '' },
+    { ...activity, title: 'Interno', place: internal, transportMode: ' INTERNO ', transportRef: '' },
+    { ...activity, title: 'Destino', place: destination, transportMode: 'A pé', transportRef: '' },
+  ];
+  const transport = data.transports[0];
+  data.transports = [
+    { ...transport, from: origin, to: internal, mode: 'Interno' },
+    { ...transport, from: origin, to: destination, mode: 'Ônibus' },
+  ];
+  data.flights = [];
+  const map = buildMap(data);
+  assert.ok(map.points.some((point) => point.items.some((item) => item.title === 'Interno')));
+  assert.equal(map.legs.length, 2);
+  assert.deepEqual(map.legs.map((leg) => leg.kind), ['foot', 'road']);
+  assert.deepEqual(map.legs[0].from, [41.39, 2.18]);
+});
+
 test('despesas de comida são agrupadas pelo tipo de refeição sem duplicar referências', () => {
   const data = parseTables(sampleRows);
   const mealBill = data.bills.find((bill) => bill.type === 'Comida');

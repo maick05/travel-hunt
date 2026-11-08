@@ -120,7 +120,7 @@ export function buildMap(data: TripData) {
     const city = cityOf(a.place);
     const style = legStyle(a.transportMode);
     if (prev && city && norm(prev.city) === norm(city) && keyOf(prev.coord) !== keyOf(c) &&
-      a.transportMode && !a.transportRef && style.kind !== 'air') {
+      a.transportMode && norm(a.transportMode) !== 'interno' && !a.transportRef && style.kind !== 'air') {
       legs.push({
         ...style,
         from: [prev.coord.lat, prev.coord.lng],
@@ -141,7 +141,7 @@ export function buildMap(data: TripData) {
   for (const transport of data.transports) {
     const from = resolve(transport.from)?.coord;
     const to = resolve(transport.to)?.coord;
-    if (from && to && keyOf(from) !== keyOf(to)) {
+    if (from && to && norm(transport.mode) !== 'interno' && keyOf(from) !== keyOf(to)) {
       const style = legStyle(transport.mode);
       legs.push({
         ...style,
