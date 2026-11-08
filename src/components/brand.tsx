@@ -28,6 +28,7 @@ const BRANDS: Record<string, Brand> = {
   flixbus: { color: '#73D700', logo: require('@/assets/brands/flixbus.png') },
   getyourguide: { color: '#FF553D', logo: require('@/assets/brands/getyourguide.jpg') },
   'get your guide': { color: '#FF553D', logo: require('@/assets/brands/getyourguide.jpg') },
+  'lockers y consignas': { color: '#FFFFFF', logo: require('@/assets/brands/lockers-y-consignas.png') },
   'expresso sao jose': { color: '#FFFFFF', logo: require('@/assets/brands/expresso-sao-jose.png') },
   catarinense: { color: '#FFFFFF', logo: require('@/assets/brands/catarinense.png') },
   uber: { color: '#1B1B1B', logo: require('@/assets/brands/uber.png') },
@@ -35,9 +36,11 @@ const BRANDS: Record<string, Brand> = {
   cabify: { color: '#7B3FF2' },
 };
 
-export function BrandBadge({ name, size = 40 }: { name: string; size?: number }) {
+export function BrandBadge({ name, size = 40, logoOnly = false }: { name: string; size?: number; logoOnly?: boolean }) {
   if (!name) return null;
-  const brand = BRANDS[norm(name)] ?? { color: '#8FA3BF' };
+  const knownBrand = BRANDS[norm(name)];
+  if (logoOnly && !knownBrand?.logo && !knownBrand?.icon) return null;
+  const brand = knownBrand ?? { color: '#8FA3BF' };
   if (brand.logo) {
     return (
       <View style={[styles.badge, { width: size, height: size }]}>

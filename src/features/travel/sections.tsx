@@ -4,42 +4,43 @@ import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } f
 
 import { BrandBadge, categoryIcon, mealIcon, modeIcon, type IconName } from '@/components/brand';
 import { PieChart, type ChartItem } from '@/components/charts';
+import { ExternalLink } from '@/components/external-link';
 import { ThemedText } from '@/components/themed-text';
 import TripMap from '@/components/trip-map';
 import {
-  Accordion,
-  Card,
-  CostLines,
-  CostTag,
-  Empty,
-  ExpandCard,
-  Field,
-  FileLink,
-  IconBubble,
-  PlaceLink,
-  StatusBadge,
-  Tabs
+    Accordion,
+    Card,
+    CostLines,
+    CostTag,
+    Empty,
+    ExpandCard,
+    Field,
+    FileLink,
+    IconBubble,
+    PlaceLink,
+    StatusBadge,
+    Tabs
 } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { cityCostKey, costFor, costsByCity, mealCostsByType } from './costs';
 import { EditButton } from './edit-item';
 import {
-  billToBRL,
-  dayKey,
-  feesNote,
-  formatAmount,
-  formatBRL,
-  formatDate,
-  formatDateTime,
-  formatDayHeading,
-  formatDuration,
-  formatTime,
-  rateNote,
-  statusTone,
-  toBRL,
+    billToBRL,
+    dayKey,
+    feesNote,
+    formatAmount,
+    formatBRL,
+    formatDate,
+    formatDateTime,
+    formatDayHeading,
+    formatDuration,
+    formatTime,
+    rateNote,
+    statusTone,
+    toBRL,
 } from './format';
 import { buildMap, itineraryActivities } from './map-data';
-import { createPlaces, placeLabel } from './places';
+import { createPlaces, isLink, placeLabel } from './places';
 import { reserveResult, sheetQuote } from './quotes';
 import { assetKey, hasReserveAsset } from './reserves';
 import type { Bill, Currency, Flight } from './schema';
@@ -262,6 +263,19 @@ function DayList({
                     ) : null}
                   </View>
                   <PlaceLink place={a.place} />
+                  {a.company ? (
+                    <View style={styles.meta}>
+                      <BrandBadge name={a.company} size={24} logoOnly />
+                      <Field label="Empresa" value={a.company} />
+                    </View>
+                  ) : null}
+                  {isLink(a.link) ? (
+                    <ExternalLink href={a.link.trim() as never}>
+                      <ThemedText type="small" style={{ color: Colors.light.accent }}>
+                        <MaterialCommunityIcons name="open-in-new" size={16} color={Colors.light.accent} /> Site da atividade
+                      </ThemedText>
+                    </ExternalLink>
+                  ) : null}
                   <Field label="Obs." value={a.notes} />
                   <FileLink url={a.voucher} />
                   <ActivityCost data={data} code={a.code} />

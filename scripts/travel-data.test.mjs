@@ -93,6 +93,18 @@ test('checkbox pré-preenchido não cria atividades vazias', () => {
   assert.equal(new Date(activities[0].reservationAvailableDate).toISOString().slice(0, 10), '2027-03-01');
 });
 
+test('atividades leem empresa, link e reserva nos cabeçalhos novos e antigos', () => {
+  const [activity] = parseTable([
+    ['Atividade', 'Empresa', 'Link', 'Res', 'Obs'],
+    ['Bagagem', 'Lockers y Consignas', 'https://example.com', 'https://example.com/reserva', 'Observação'],
+  ], schemas.activities.fields);
+  assert.equal(activity.company, 'Lockers y Consignas');
+  assert.equal(activity.link, 'https://example.com');
+  assert.equal(activity.voucher, 'https://example.com/reserva');
+  assert.equal(activity.notes, 'Observação');
+  assert.equal(parseTable([['Atividade', 'Reserva'], ['Passeio', 'https://example.com/voucher']], schemas.activities.fields)[0].voucher, 'https://example.com/voucher');
+});
+
 test('dados de exemplo mantêm vínculos e reservas separados dos totais', () => {
   const tables = parseTables(sampleRows);
   const bill = tables.bills.find((item) => item.description === 'Uber');
