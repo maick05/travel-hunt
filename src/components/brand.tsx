@@ -26,6 +26,8 @@ const BRANDS: Record<string, Brand> = {
   expedia: { color: '#FFC72C', fg: '#1B2A41' },
   'conducao propria': { color: '#356B55', icon: 'steering' },
   flixbus: { color: '#73D700', logo: require('@/assets/brands/flixbus.png') },
+  getyourguide: { color: '#FF553D', logo: require('@/assets/brands/getyourguide.jpg') },
+  'get your guide': { color: '#FF553D', logo: require('@/assets/brands/getyourguide.jpg') },
   'expresso sao jose': { color: '#FFFFFF', logo: require('@/assets/brands/expresso-sao-jose.png') },
   catarinense: { color: '#FFFFFF', logo: require('@/assets/brands/catarinense.png') },
   uber: { color: '#1B1B1B', logo: require('@/assets/brands/uber.png') },
