@@ -224,6 +224,7 @@ function DayList({
         <Accordion
           key={dayKey(items[0].start)}
           sub
+          defaultOpen={days.size === 1}
           icon="calendar"
           title={formatDayHeading(items[0].start)}
           subtitle={`${items.length} ${items.length === 1 ? 'atividade' : 'atividades'}`}>
@@ -561,6 +562,7 @@ function FoodDays({ data, meals }: { data: TripData; meals: TripData['meals'] })
         <Accordion
           key={dayKey(items[0].date)}
           sub
+          defaultOpen={days.size === 1}
           icon="calendar"
           title={formatDayHeading(items[0].date)}
           subtitle={`${items.length} ${items.length === 1 ? 'refeição' : 'refeições'}`}>
