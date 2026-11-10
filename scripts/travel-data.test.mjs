@@ -25,7 +25,7 @@ test('edição converte datas e reconhece tipos do esquema', () => {
 });
 const { hasReserveAsset } = require('../src/features/travel/reserves.ts');
 const { billToBRL } = require('../src/features/travel/format.ts');
-const { mealCostsByType } = require('../src/features/travel/costs.ts');
+const { mealCostsByType, moneyBreakdown } = require('../src/features/travel/costs.ts');
 const { registerCoords } = require('../src/features/travel/places.ts');
 const { buildMap, itineraryActivities } = require('../src/features/travel/map-data.ts');
 const quoteStorage = new Map();
@@ -113,6 +113,23 @@ test('dados de exemplo mantêm vínculos e reservas separados dos totais', () =>
   assert.equal(tables.valueReserves[0].assetDescription, 'Ativo exemplo 1');
   const total = tables.bills.reduce((sum, item) => sum + (billToBRL(item, tables.currencies) ?? 0), 0);
   assert.ok(Math.abs(total - 5431.375) < 0.001);
+});
+
+test('gráficos financeiros agrupam em reais e filtram moeda e pagamento', () => {
+  const data = parseTables(sampleRows);
+  const bill = data.bills[0];
+  data.bills = [
+    { ...bill, currency: 'EUR', paymentMethod: 'Cartão', amount: 10, usedRate: 6 },
+    { ...bill, currency: 'EUR', paymentMethod: 'Dinheiro', amount: 5, usedRate: 6 },
+    { ...bill, currency: 'USD', paymentMethod: 'Cartão', amount: 10, usedRate: 5 },
+    { ...bill, currency: '', paymentMethod: '', amount: 10, usedRate: null },
+    { ...bill, currency: 'EUR', paymentMethod: 'Cartão', amount: 4, usedRate: 0 },
+  ];
+  assert.deepEqual([...moneyBreakdown(data, 'currency', null)], [['EUR', 90], ['USD', 50], ['Sem moeda', 0]]);
+  assert.deepEqual([...moneyBreakdown(data, 'currency', 'Cartão')], [['EUR', 60], ['USD', 50]]);
+  assert.deepEqual([...moneyBreakdown(data, 'paymentMethod', 'EUR')], [['Cartão', 60], ['Dinheiro', 30]]);
+  assert.deepEqual([...moneyBreakdown(data, 'paymentMethod', '')], [['Sem meio de pagamento', 0]]);
+  assert.equal(moneyBreakdown(data, 'currency', 'Inexistente').size, 0);
 });
 
 test('ponto inicial permanece no mapa sem ocultar uma volta posterior', () => {

@@ -41,6 +41,17 @@ export function mealCostsByType(data: TripData): Map<string, number> {
   return totals;
 }
 
+export function moneyBreakdown(data: TripData, groupBy: 'currency' | 'paymentMethod', filter: string | null): Map<string, number> {
+  const filterBy = groupBy === 'currency' ? 'paymentMethod' : 'currency';
+  const totals = new Map<string, number>();
+  for (const bill of data.bills) {
+    if (filter !== null && bill[filterBy] !== filter) continue;
+    const label = bill[groupBy] || (groupBy === 'currency' ? 'Sem moeda' : 'Sem meio de pagamento');
+    totals.set(label, (totals.get(label) ?? 0) + (billToBRL(bill, data.currencies) ?? 0));
+  }
+  return totals;
+}
+
 export type CityCost = {
   city: string;
   totalBRL: number;

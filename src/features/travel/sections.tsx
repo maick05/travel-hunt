@@ -22,7 +22,7 @@ import {
     Tabs
 } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { cityCostKey, costFor, costsByCity, mealCostsByType } from './costs';
+import { cityCostKey, costFor, costsByCity, mealCostsByType, moneyBreakdown } from './costs';
 import { EditButton } from './edit-item';
 import {
     billToBRL,
@@ -609,12 +609,14 @@ const FOOD_CHARTS: { key: 'type' | 'status'; label: string; icon: IconName }[] =
   { key: 'status', label: 'Status', icon: 'list-status' },
 ];
 
-type MoneyChart = 'type' | 'category' | 'status' | 'meals';
+type MoneyChart = 'type' | 'category' | 'status' | 'meals' | 'currency' | 'paymentMethod';
 const MONEY_CHARTS: { key: MoneyChart; label: string; icon: IconName }[] = [
   { key: 'type', label: 'Tipo', icon: 'shape-outline' },
   { key: 'category', label: 'Categoria', icon: 'tag-outline' },
   { key: 'status', label: 'Status', icon: 'list-status' },
   { key: 'meals', label: 'Refeições', icon: 'silverware-fork-knife' },
+  { key: 'currency', label: 'Moeda', icon: 'cash-multiple' },
+  { key: 'paymentMethod', label: 'Pagamento', icon: 'credit-card-outline' },
 ];
 
 function MealChart({ data }: { data: TripData }) {
@@ -680,6 +682,8 @@ export function MoneySection({ data }: { data: TripData }) {
   const [chart, setChart] = useState<MoneyChart>('type');
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
   if (!data.bills.length && !data.valueReserves.length) return <Empty />;
 
   const converted = data.bills.map((b) => ({ bill: b, brl: billToBRL(b, data.currencies) }));
@@ -706,6 +710,11 @@ export function MoneySection({ data }: { data: TripData }) {
   const byType = group((b) => b.type, (_, i) => CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
   const byCategory = group((b) => b.category || 'Sem categoria', (_, i) => CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
   const byStatus = group((b) => b.status || 'Sem status', (label) => TONE_COLORS[statusTone(label)]);
+  const chartItems = (totals: Map<string, number>): ChartItem[] => [...totals].map(([label, value], index) => ({
+    label, value, color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+  }));
+  const paymentMethods = [...new Set(data.bills.map((bill) => bill.paymentMethod))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const currencies = [...new Set(data.bills.map((bill) => bill.currency))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
   return (
     <View style={styles.list}>
@@ -746,6 +755,22 @@ export function MoneySection({ data }: { data: TripData }) {
           {chart === 'category' && <PieChart key="category" title="Despesas por categoria" items={byCategory} format={formatBRL} />}
           {chart === 'status' && <PieChart key="status" title="Despesas por status" items={byStatus} format={formatBRL} />}
           {chart === 'meals' && <MealChart data={data} />}
+          {chart === 'currency' && (
+            <>
+              <View style={styles.filterRow}>
+                <FilterSelect label="Meio de pagamento" kind="paymentMethod" value={selectedPayment} options={paymentMethods} emptyLabel="Sem meio de pagamento" allLabel="Todos" onChange={setSelectedPayment} />
+              </View>
+              <PieChart key="currency" title="Despesas por moeda (R$)" items={chartItems(moneyBreakdown(data, 'currency', selectedPayment))} format={formatBRL} />
+            </>
+          )}
+          {chart === 'paymentMethod' && (
+            <>
+              <View style={styles.filterRow}>
+                <FilterSelect label="Moeda" kind="currency" value={selectedCurrency} options={currencies} emptyLabel="Sem moeda" onChange={setSelectedCurrency} />
+              </View>
+              <PieChart key="paymentMethod" title="Despesas por meio de pagamento (R$)" items={chartItems(moneyBreakdown(data, 'paymentMethod', selectedCurrency))} format={formatBRL} />
+            </>
+          )}
         </>
       ) : view === 'bills' ? (
         filtered.length ? <ListScroll>{filtered.map(({ bill, brl }, index) => (
@@ -882,22 +907,25 @@ function ReserveQuote({ reserve }: { reserve: TripData['valueReserves'][number] 
   );
 }
 
-function FilterSelect({ label, kind, value, options, emptyLabel, onChange }: {
+function FilterSelect({ label, kind, value, options, emptyLabel, allLabel = 'Todas', onChange }: {
   label: string;
-  kind: 'type' | 'category';
+  kind: 'type' | 'category' | 'currency' | 'paymentMethod';
   value: string | null;
   options: string[];
   emptyLabel: string;
+  allLabel?: string;
   onChange: (value: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const choices: (string | null)[] = [null, ...options];
-  const optionLabel = (option: string | null) => option === null ? 'Todas' : option || emptyLabel;
+  const optionLabel = (option: string | null) => option === null ? allLabel : option || emptyLabel;
+  const optionIcon = (option: string | null): IconName => kind === 'currency' ? 'cash-multiple'
+    : kind === 'paymentMethod' ? 'credit-card-outline' : billIcon(option, kind);
   return (
     <View style={styles.filterField}>
       <ThemedText type="small" themeColor="textSecondary">{label}</ThemedText>
       <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${optionLabel(value)}`} onPress={() => setOpen(true)} style={styles.filterSelect}>
-        <MaterialCommunityIcons name={billIcon(value, kind)} size={18} color={Colors.light.accent} />
+        <MaterialCommunityIcons name={optionIcon(value)} size={18} color={Colors.light.accent} />
         <ThemedText type="small" numberOfLines={1} style={styles.filterValue}>{optionLabel(value)}</ThemedText>
         <MaterialCommunityIcons name="chevron-down" size={20} color={Colors.light.textSecondary} />
       </Pressable>
@@ -920,7 +948,7 @@ function FilterSelect({ label, kind, value, options, emptyLabel, onChange }: {
                   accessibilityState={{ checked: value === option }}
                   onPress={() => { onChange(option); setOpen(false); }}
                   style={styles.filterOption}>
-                  <MaterialCommunityIcons name={billIcon(option, kind)} size={18} color={Colors.light.accent} />
+                  <MaterialCommunityIcons name={optionIcon(option)} size={18} color={Colors.light.accent} />
                   <ThemedText type="small" style={styles.filterValue}>{optionLabel(option)}</ThemedText>
                   {value === option && <MaterialCommunityIcons name="check" size={20} color={Colors.light.accent} />}
                 </Pressable>
