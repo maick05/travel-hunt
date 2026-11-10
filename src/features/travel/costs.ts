@@ -52,6 +52,19 @@ export function moneyBreakdown(data: TripData, groupBy: 'currency' | 'paymentMet
   return totals;
 }
 
+export function originalMoneyBreakdown(data: TripData, currency: string | null, paymentMethod: string | null): Map<string, Map<string, number>> {
+  const totals = new Map<string, Map<string, number>>();
+  for (const bill of data.bills) {
+    if ((currency !== null && bill.currency !== currency) ||
+        (paymentMethod !== null && bill.paymentMethod !== paymentMethod) || bill.amount === null) continue;
+    const payments = totals.get(bill.currency) ?? new Map<string, number>();
+    const label = bill.paymentMethod || 'Sem meio de pagamento';
+    payments.set(label, (payments.get(label) ?? 0) + bill.amount);
+    totals.set(bill.currency, payments);
+  }
+  return totals;
+}
+
 export type CityCost = {
   city: string;
   totalBRL: number;

@@ -8,36 +8,36 @@ import { ExternalLink } from '@/components/external-link';
 import { ThemedText } from '@/components/themed-text';
 import TripMap from '@/components/trip-map';
 import {
-    Accordion,
-    Card,
-    CostLines,
-    CostTag,
-    Empty,
-    ExpandCard,
-    Field,
-    FileLink,
-    IconBubble,
-    PlaceLink,
-    StatusBadge,
-    Tabs
+  Accordion,
+  Card,
+  CostLines,
+  CostTag,
+  Empty,
+  ExpandCard,
+  Field,
+  FileLink,
+  IconBubble,
+  PlaceLink,
+  StatusBadge,
+  Tabs
 } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { cityCostKey, costFor, costsByCity, mealCostsByType, moneyBreakdown } from './costs';
+import { cityCostKey, costFor, costsByCity, mealCostsByType, moneyBreakdown, originalMoneyBreakdown } from './costs';
 import { EditButton } from './edit-item';
 import {
-    billToBRL,
-    dayKey,
-    feesNote,
-    formatAmount,
-    formatBRL,
-    formatDate,
-    formatDateTime,
-    formatDayHeading,
-    formatDuration,
-    formatTime,
-    rateNote,
-    statusTone,
-    toBRL,
+  billToBRL,
+  dayKey,
+  feesNote,
+  formatAmount,
+  formatBRL,
+  formatDate,
+  formatDateTime,
+  formatDayHeading,
+  formatDuration,
+  formatTime,
+  rateNote,
+  statusTone,
+  toBRL,
 } from './format';
 import { buildMap, itineraryActivities } from './map-data';
 import { createPlaces, isLink, placeLabel } from './places';
@@ -610,6 +610,11 @@ const FOOD_CHARTS: { key: 'type' | 'status'; label: string; icon: IconName }[] =
 ];
 
 type MoneyChart = 'type' | 'category' | 'status' | 'meals' | 'currency' | 'paymentMethod';
+type MoneyValueMode = 'original' | 'converted';
+const MONEY_VALUE_MODES: { key: MoneyValueMode; label: string; icon: IconName }[] = [
+  { key: 'original', label: 'Valor original', icon: 'cash-multiple' },
+  { key: 'converted', label: 'Convertido em R$', icon: 'currency-usd' },
+];
 const MONEY_CHARTS: { key: MoneyChart; label: string; icon: IconName }[] = [
   { key: 'type', label: 'Tipo', icon: 'shape-outline' },
   { key: 'category', label: 'Categoria', icon: 'tag-outline' },
@@ -684,6 +689,7 @@ export function MoneySection({ data }: { data: TripData }) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
+  const [valueMode, setValueMode] = useState<MoneyValueMode>('original');
   if (!data.bills.length && !data.valueReserves.length) return <Empty />;
 
   const converted = data.bills.map((b) => ({ bill: b, brl: billToBRL(b, data.currencies) }));
@@ -715,6 +721,8 @@ export function MoneySection({ data }: { data: TripData }) {
   }));
   const paymentMethods = [...new Set(data.bills.map((bill) => bill.paymentMethod))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const currencies = [...new Set(data.bills.map((bill) => bill.currency))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const originalCurrencies = originalMoneyBreakdown(data, null, selectedPayment);
+  const originalPayments = originalMoneyBreakdown(data, selectedCurrency, null);
 
   return (
     <View style={styles.list}>
@@ -755,12 +763,27 @@ export function MoneySection({ data }: { data: TripData }) {
           {chart === 'category' && <PieChart key="category" title="Despesas por categoria" items={byCategory} format={formatBRL} />}
           {chart === 'status' && <PieChart key="status" title="Despesas por status" items={byStatus} format={formatBRL} />}
           {chart === 'meals' && <MealChart data={data} />}
+          {(chart === 'currency' || chart === 'paymentMethod') && (
+            <Tabs tabs={MONEY_VALUE_MODES} value={valueMode} onChange={setValueMode} secondary />
+          )}
           {chart === 'currency' && (
             <>
               <View style={styles.filterRow}>
                 <FilterSelect label="Meio de pagamento" kind="paymentMethod" value={selectedPayment} options={paymentMethods} emptyLabel="Sem meio de pagamento" allLabel="Todos" onChange={setSelectedPayment} />
               </View>
-              <PieChart key="currency" title="Despesas por moeda (R$)" items={chartItems(moneyBreakdown(data, 'currency', selectedPayment))} format={formatBRL} />
+              {valueMode === 'converted' ? (
+                <PieChart key="currency" title="Despesas por moeda (R$)" items={chartItems(moneyBreakdown(data, 'currency', selectedPayment))} format={formatBRL} />
+              ) : (
+                <Card>
+                  <ThemedText type="smallBold">Despesas por moeda</ThemedText>
+                  {originalCurrencies.size ? [...originalCurrencies].map(([currency, payments]) => (
+                    <View key={currency} style={styles.originalCurrencyRow}>
+                      <ThemedText type="small" style={styles.flex}>{currency || 'Sem moeda'}</ThemedText>
+                      <ThemedText type="smallBold">{reserveNumber([...payments.values()].reduce((sum, amount) => sum + amount, 0))}</ThemedText>
+                    </View>
+                  )) : <Empty>Nenhum valor para exibir.</Empty>}
+                </Card>
+              )}
             </>
           )}
           {chart === 'paymentMethod' && (
@@ -768,7 +791,11 @@ export function MoneySection({ data }: { data: TripData }) {
               <View style={styles.filterRow}>
                 <FilterSelect label="Moeda" kind="currency" value={selectedCurrency} options={currencies} emptyLabel="Sem moeda" onChange={setSelectedCurrency} />
               </View>
-              <PieChart key="paymentMethod" title="Despesas por meio de pagamento (R$)" items={chartItems(moneyBreakdown(data, 'paymentMethod', selectedCurrency))} format={formatBRL} />
+              {valueMode === 'converted' ? (
+                <PieChart key="paymentMethod" title="Despesas por meio de pagamento (R$)" items={chartItems(moneyBreakdown(data, 'paymentMethod', selectedCurrency))} format={formatBRL} />
+              ) : originalPayments.size ? [...originalPayments].map(([currency, payments]) => (
+                <PieChart key={currency} title={`Despesas por pagamento · ${currency || 'Sem moeda'}`} items={chartItems(payments)} format={(value) => [currency, reserveNumber(value)].filter(Boolean).join(' ')} />
+              )) : <Empty>Nenhum valor para exibir.</Empty>}
             </>
           )}
         </>
@@ -1035,6 +1062,7 @@ function BillCard({ bill, brl, currencies, reserves, share = 1 }: { bill: Bill; 
 
 const styles = StyleSheet.create({
   list: { gap: Spacing.two },
+  originalCurrencyRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   listContent: { paddingHorizontal: Spacing.one, paddingVertical: Spacing.two },
   filterRow: { flexDirection: 'row', gap: Spacing.two },
   filterField: { flex: 1, minWidth: 0, gap: Spacing.one },

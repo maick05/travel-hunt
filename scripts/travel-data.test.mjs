@@ -25,7 +25,7 @@ test('edição converte datas e reconhece tipos do esquema', () => {
 });
 const { hasReserveAsset } = require('../src/features/travel/reserves.ts');
 const { billToBRL } = require('../src/features/travel/format.ts');
-const { mealCostsByType, moneyBreakdown } = require('../src/features/travel/costs.ts');
+const { mealCostsByType, moneyBreakdown, originalMoneyBreakdown } = require('../src/features/travel/costs.ts');
 const { registerCoords } = require('../src/features/travel/places.ts');
 const { buildMap, itineraryActivities } = require('../src/features/travel/map-data.ts');
 const quoteStorage = new Map();
@@ -130,6 +130,29 @@ test('gráficos financeiros agrupam em reais e filtram moeda e pagamento', () =>
   assert.deepEqual([...moneyBreakdown(data, 'paymentMethod', 'EUR')], [['Cartão', 60], ['Dinheiro', 30]]);
   assert.deepEqual([...moneyBreakdown(data, 'paymentMethod', '')], [['Sem meio de pagamento', 0]]);
   assert.equal(moneyBreakdown(data, 'currency', 'Inexistente').size, 0);
+});
+
+test('valores originais são agrupados por moeda e meio de pagamento sem conversão', () => {
+  const data = parseTables(sampleRows);
+  const bill = data.bills[0];
+  data.bills = [
+    { ...bill, currency: 'EUR', paymentMethod: 'Cartão', amount: 10, usedRate: 6 },
+    { ...bill, currency: 'EUR', paymentMethod: 'Cartão', amount: 4, usedRate: 0 },
+    { ...bill, currency: 'EUR', paymentMethod: 'Dinheiro', amount: 5, usedRate: null },
+    { ...bill, currency: 'USD', paymentMethod: 'Cartão', amount: 8, usedRate: null },
+    { ...bill, currency: '', paymentMethod: '', amount: 3, usedRate: null },
+    { ...bill, currency: 'EUR', paymentMethod: 'Dinheiro', amount: null, usedRate: 6 },
+  ];
+  const entries = (result) => [...result].map(([currency, payments]) => [currency, [...payments]]);
+  assert.deepEqual(entries(originalMoneyBreakdown(data, null, null)), [
+    ['EUR', [['Cartão', 14], ['Dinheiro', 5]]],
+    ['USD', [['Cartão', 8]]],
+    ['', [['Sem meio de pagamento', 3]]],
+  ]);
+  assert.deepEqual(entries(originalMoneyBreakdown(data, null, 'Cartão')), [['EUR', [['Cartão', 14]]], ['USD', [['Cartão', 8]]]]);
+  assert.deepEqual(entries(originalMoneyBreakdown(data, 'EUR', null)), [['EUR', [['Cartão', 14], ['Dinheiro', 5]]]]);
+  assert.deepEqual(entries(originalMoneyBreakdown(data, '', '')), [['', [['Sem meio de pagamento', 3]]]]);
+  assert.equal(originalMoneyBreakdown(data, 'GBP', null).size, 0);
 });
 
 test('ponto inicial permanece no mapa sem ocultar uma volta posterior', () => {
